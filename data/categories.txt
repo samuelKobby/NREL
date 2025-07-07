@@ -1,0 +1,18 @@
+# Categories
+# Format: CategoryName
+Cement
+Steel Bars
+Roofing Sheets
+Electrical Materials
+Plumbing Materials
+Paint
+Labor Costs
+Transportation
+Printing
+TV Adverts
+Radio Adverts
+Marketing Materials
+Office Supplies
+Legal Fees
+Insurance
+Utilities

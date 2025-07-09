@@ -1,307 +1,239 @@
 package com.nkwarealestate.expenditure.datastructures;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Custom Binary Search Tree implementation
- * Used for hierarchical data organization and efficient searching/sorting
+ * Custom Tree implementation
+ * Used for hierarchical data organization
  */
-public class CustomTree<T extends Comparable<T>> {
+public class CustomTree<T> {
 
     private TreeNode<T> root;
     private int size;
-
+    
     /**
-     * TreeNode class for BST implementation
+     * Inner class for tree nodes
      */
-    private static class TreeNode<T> {
-        T data;
-        TreeNode<T> left;
-        TreeNode<T> right;
-
-        TreeNode(T data) {
-            this.data = data;
-            this.left = null;
-            this.right = null;
+    public static class TreeNode<T> {
+        T value;
+        TreeNode<T> parent;
+        List<TreeNode<T>> children;
+        
+        TreeNode(T value) {
+            this.value = value;
+            this.parent = null;
+            this.children = new ArrayList<>();
+        }
+        
+        /**
+         * Add a child node to this node
+         */
+        void addChild(TreeNode<T> child) {
+            child.parent = this;
+            this.children.add(child);
+        }
+        
+        /**
+         * Check if this node is a leaf (has no children)
+         */
+        boolean isLeaf() {
+            return children.isEmpty();
+        }
+        
+        /**
+         * Get the number of children
+         */
+        int childCount() {
+            return children.size();
         }
     }
-
+    
     /**
-     * Constructor
+     * Default constructor
      */
     public CustomTree() {
         this.root = null;
         this.size = 0;
     }
-
+    
     /**
-     * Insert an element into the tree
+     * Constructor with root value
      */
-    public void insert(T data) {
-        if (data == null) {
-            throw new IllegalArgumentException("Cannot insert null data");
-        }
-
-        root = insertRecursive(root, data);
+    public CustomTree(T rootValue) {
+        this.root = new TreeNode<>(rootValue);
+        this.size = 1;
     }
-
+    
     /**
-     * Recursive helper method for insertion
+     * Add a child node to a parent node identified by its value
+     * 
+     * @param parentValue The value of the parent node
+     * @param childValue The value for the new child node
+     * @return True if parent found and child added, false otherwise
      */
-    private TreeNode<T> insertRecursive(TreeNode<T> node, T data) {
-        if (node == null) {
+    public boolean addChild(T parentValue, T childValue) {
+        if (root == null) {
+            // If tree is empty and trying to add a child, create root first
+            root = new TreeNode<>(parentValue);
             size++;
-            return new TreeNode<>(data);
         }
-
-        int comparison = data.compareTo(node.data);
-
-        if (comparison < 0) {
-            node.left = insertRecursive(node.left, data);
-        } else if (comparison > 0) {
-            node.right = insertRecursive(node.right, data);
-        }
-        // If comparison == 0, we don't insert duplicates
-
-        return node;
-    }
-
-    /**
-     * Search for an element in the tree
-     */
-    public boolean search(T data) {
-        if (data == null) {
-            return false;
-        }
-        return searchRecursive(root, data);
-    }
-
-    /**
-     * Recursive helper method for searching
-     */
-    private boolean searchRecursive(TreeNode<T> node, T data) {
-        if (node == null) {
-            return false;
-        }
-
-        int comparison = data.compareTo(node.data);
-
-        if (comparison == 0) {
+        
+        // Find the parent node
+        TreeNode<T> parentNode = findNode(root, parentValue);
+        
+        if (parentNode != null) {
+            // Add child to the parent
+            TreeNode<T> childNode = new TreeNode<>(childValue);
+            parentNode.addChild(childNode);
+            size++;
             return true;
-        } else if (comparison < 0) {
-            return searchRecursive(node.left, data);
-        } else {
-            return searchRecursive(node.right, data);
         }
+        
+        return false;
     }
-
+    
     /**
-     * Delete an element from the tree
+     * Find a node by value using DFS
      */
-    public boolean delete(T data) {
-        if (data == null || !search(data)) {
-            return false;
-        }
-
-        root = deleteRecursive(root, data);
-        size--;
-        return true;
-    }
-
-    /**
-     * Recursive helper method for deletion
-     */
-    private TreeNode<T> deleteRecursive(TreeNode<T> node, T data) {
-        if (node == null) {
+    private TreeNode<T> findNode(TreeNode<T> current, T value) {
+        if (current == null) {
             return null;
         }
-
-        int comparison = data.compareTo(node.data);
-
-        if (comparison < 0) {
-            node.left = deleteRecursive(node.left, data);
-        } else if (comparison > 0) {
-            node.right = deleteRecursive(node.right, data);
-        } else {
-            // Node to be deleted found
-
-            // Case 1: No children (leaf node)
-            if (node.left == null && node.right == null) {
-                return null;
+        
+        if (current.value.equals(value)) {
+            return current;
+        }
+        
+        // Search in children
+        for (TreeNode<T> child : current.children) {
+            TreeNode<T> found = findNode(child, value);
+            if (found != null) {
+                return found;
             }
-
-            // Case 2: One child
-            if (node.left == null) {
-                return node.right;
-            }
-            if (node.right == null) {
-                return node.left;
-            }
-
-            // Case 3: Two children
-            // Find inorder successor (smallest in right subtree)
-            TreeNode<T> successor = findMin(node.right);
-            node.data = successor.data;
-            node.right = deleteRecursive(node.right, successor.data);
         }
-
-        return node;
+        
+        return null;
     }
-
+    
     /**
-     * Find minimum element in subtree
-     */
-    private TreeNode<T> findMin(TreeNode<T> node) {
-        while (node.left != null) {
-            node = node.left;
-        }
-        return node;
-    }
-
-    /**
-     * Find maximum element in subtree
-     */
-    private TreeNode<T> findMax(TreeNode<T> node) {
-        while (node.right != null) {
-            node = node.right;
-        }
-        return node;
-    }
-
-    /**
-     * Get minimum element in the tree
-     */
-    public T getMin() {
-        if (root == null) {
-            throw new RuntimeException("Tree is empty");
-        }
-        return findMin(root).data;
-    }
-
-    /**
-     * Get maximum element in the tree
-     */
-    public T getMax() {
-        if (root == null) {
-            throw new RuntimeException("Tree is empty");
-        }
-        return findMax(root).data;
-    }
-
-    /**
-     * Get size of the tree
+     * Get the size of the tree (number of nodes)
      */
     public int size() {
         return size;
     }
-
+    
     /**
-     * Check if tree is empty
+     * Check if the tree is empty
      */
     public boolean isEmpty() {
         return root == null;
     }
-
+    
     /**
-     * Get height of the tree
+     * Check if a value exists in the tree
      */
-    public int height() {
-        return heightRecursive(root);
+    public boolean contains(T value) {
+        return findNode(root, value) != null;
     }
-
+    
     /**
-     * Recursive helper method for height calculation
+     * Get the depth (level) of a node with the given value
+     * Root is at depth 0
      */
-    private int heightRecursive(TreeNode<T> node) {
+    public int getDepth(T value) {
+        TreeNode<T> node = findNode(root, value);
+        
         if (node == null) {
-            return -1;
+            return -1; // Node not found
         }
-        return 1 + Math.max(heightRecursive(node.left), heightRecursive(node.right));
+        
+        int depth = 0;
+        TreeNode<T> current = node;
+        
+        while (current.parent != null) {
+            depth++;
+            current = current.parent;
+        }
+        
+        return depth;
     }
-
+    
     /**
-     * Clear all elements from the tree
+     * Get the height of the tree (longest path from root to a leaf)
+     */
+    public int getHeight() {
+        if (root == null) {
+            return 0;
+        }
+        
+        return getNodeHeight(root);
+    }
+    
+    /**
+     * Get the height of a subtree rooted at the given node
+     */
+    private int getNodeHeight(TreeNode<T> node) {
+        if (node.isLeaf()) {
+            return 0;
+        }
+        
+        int maxChildHeight = -1;
+        
+        for (TreeNode<T> child : node.children) {
+            int childHeight = getNodeHeight(child);
+            if (childHeight > maxChildHeight) {
+                maxChildHeight = childHeight;
+            }
+        }
+        
+        return maxChildHeight + 1;
+    }
+    
+    /**
+     * Print the tree structure in a hierarchical format
+     */
+    public void printTree() {
+        if (root == null) {
+            System.out.println("Empty tree");
+            return;
+        }
+        
+        printNodeHierarchy(root, 0);
+    }
+    
+    /**
+     * Helper method to print node hierarchy with indentation
+     */
+    private void printNodeHierarchy(TreeNode<T> node, int depth) {
+        if (node == null) {
+            return;
+        }
+        
+        // Print indentation based on depth
+        StringBuilder indent = new StringBuilder();
+        for (int i = 0; i < depth; i++) {
+            indent.append("  ");
+        }
+        
+        // Print current node with appropriate branch symbol
+        if (depth > 0) {
+            System.out.println(indent.toString() + "└─ " + node.value);
+        } else {
+            System.out.println(node.value); // Root node
+        }
+        
+        // Print children with increased indentation
+        for (TreeNode<T> child : node.children) {
+            printNodeHierarchy(child, depth + 1);
+        }
+    }
+    
+    /**
+     * Clear the tree
      */
     public void clear() {
         root = null;
         size = 0;
-    }
-
-    /**
-     * Get inorder traversal as array
-     */
-    public CustomLinkedList<T> inOrderTraversal() {
-        CustomLinkedList<T> result = new CustomLinkedList<>();
-        inOrderRecursive(root, result);
-        return result;
-    }
-
-    /**
-     * Recursive helper for inorder traversal
-     */
-    private void inOrderRecursive(TreeNode<T> node, CustomLinkedList<T> result) {
-        if (node != null) {
-            inOrderRecursive(node.left, result);
-            result.add(node.data);
-            inOrderRecursive(node.right, result);
-        }
-    }
-
-    /**
-     * Get preorder traversal as array
-     */
-    public CustomLinkedList<T> preOrderTraversal() {
-        CustomLinkedList<T> result = new CustomLinkedList<>();
-        preOrderRecursive(root, result);
-        return result;
-    }
-
-    /**
-     * Recursive helper for preorder traversal
-     */
-    private void preOrderRecursive(TreeNode<T> node, CustomLinkedList<T> result) {
-        if (node != null) {
-            result.add(node.data);
-            preOrderRecursive(node.left, result);
-            preOrderRecursive(node.right, result);
-        }
-    }
-
-    /**
-     * Get postorder traversal as array
-     */
-    public CustomLinkedList<T> postOrderTraversal() {
-        CustomLinkedList<T> result = new CustomLinkedList<>();
-        postOrderRecursive(root, result);
-        return result;
-    }
-
-    /**
-     * Recursive helper for postorder traversal
-     */
-    private void postOrderRecursive(TreeNode<T> node, CustomLinkedList<T> result) {
-        if (node != null) {
-            postOrderRecursive(node.left, result);
-            postOrderRecursive(node.right, result);
-            result.add(node.data);
-        }
-    }
-
-    @Override
-    public String toString() {
-        if (isEmpty()) {
-            return "[]";
-        }
-
-        CustomLinkedList<T> inOrder = inOrderTraversal();
-        StringBuilder sb = new StringBuilder("[");
-
-        for (int i = 0; i < inOrder.size(); i++) {
-            sb.append(inOrder.get(i));
-            if (i < inOrder.size() - 1) {
-                sb.append(", ");
-            }
-        }
-
-        sb.append("]");
-        return sb.toString();
     }
 }

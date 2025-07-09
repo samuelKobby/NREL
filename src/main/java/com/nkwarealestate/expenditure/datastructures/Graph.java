@@ -12,20 +12,29 @@ public class Graph<T> {
     private int edgeCount;
 
     /**
-     * Edge class to represent weighted edges
+     * Edge class to represent weighted edges with relationship type
      */
     public static class Edge<T> {
         T destination;
         double weight;
+        String relationshipType;
+
+        public Edge(T destination, double weight, String relationshipType) {
+            this.destination = destination;
+            this.weight = weight;
+            this.relationshipType = relationshipType;
+        }
 
         public Edge(T destination, double weight) {
             this.destination = destination;
             this.weight = weight;
+            this.relationshipType = "default";
         }
 
         public Edge(T destination) {
             this.destination = destination;
             this.weight = 1.0; // Default weight
+            this.relationshipType = "default";
         }
 
         public T getDestination() {
@@ -36,9 +45,13 @@ public class Graph<T> {
             return weight;
         }
 
+        public String getRelationshipType() {
+            return relationshipType;
+        }
+
         @Override
         public String toString() {
-            return destination + "(" + weight + ")";
+            return destination + "(" + weight + ", " + relationshipType + ")";
         }
     }
 
@@ -77,6 +90,13 @@ public class Graph<T> {
      * Add an edge between two vertices with weight
      */
     public void addEdge(T source, T destination, double weight) {
+        addEdge(source, destination, weight, "default");
+    }
+
+    /**
+     * Add an edge between two vertices with weight and relationship type
+     */
+    public void addEdge(T source, T destination, double weight, String relationshipType) {
         if (source == null || destination == null) {
             throw new IllegalArgumentException("Vertices cannot be null");
         }
@@ -86,11 +106,11 @@ public class Graph<T> {
         addVertex(destination);
 
         // Add edge from source to destination
-        adjacencyList.get(source).add(new Edge<>(destination, weight));
+        adjacencyList.get(source).add(new Edge<>(destination, weight, relationshipType));
 
         // If undirected, add edge from destination to source
         if (!isDirected) {
-            adjacencyList.get(destination).add(new Edge<>(source, weight));
+            adjacencyList.get(destination).add(new Edge<>(source, weight, relationshipType));
         }
 
         edgeCount++;
@@ -100,7 +120,7 @@ public class Graph<T> {
      * Add an unweighted edge (default weight = 1.0)
      */
     public void addEdge(T source, T destination) {
-        addEdge(source, destination, 1.0);
+        addEdge(source, destination, 1.0, "default");
     }
 
     /**

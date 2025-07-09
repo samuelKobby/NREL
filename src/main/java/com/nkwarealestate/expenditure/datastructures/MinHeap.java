@@ -2,80 +2,145 @@ package com.nkwarealestate.expenditure.datastructures;
 
 /**
  * Custom MinHeap implementation using arrays
- * Used for bank account balance monitoring and priority operations
+ * Specialized for bank account balance monitoring
+ * Uses account balances as keys and account IDs as values
  */
-public class MinHeap<T extends Comparable<T>> {
+public class MinHeap {
 
     private static final int DEFAULT_CAPACITY = 10;
-    private T[] heap;
+    private int[] balances; // Keys (balances)
+    private String[] accountIds; // Values (account IDs)
     private int size;
     private int capacity;
 
     /**
      * Constructor with default capacity
      */
-    @SuppressWarnings("unchecked")
     public MinHeap() {
         this.capacity = DEFAULT_CAPACITY;
-        this.heap = (T[]) new Comparable[capacity];
+        this.balances = new int[capacity];
+        this.accountIds = new String[capacity];
         this.size = 0;
     }
 
     /**
      * Constructor with specified capacity
      */
-    @SuppressWarnings("unchecked")
     public MinHeap(int capacity) {
         this.capacity = capacity;
-        this.heap = (T[]) new Comparable[capacity];
+        this.balances = new int[capacity];
+        this.accountIds = new String[capacity];
         this.size = 0;
     }
 
     /**
-     * Insert an element into the heap
+     * Insert a bank account into the heap based on balance
      */
-    public void insert(T element) {
-        if (element == null) {
-            throw new IllegalArgumentException("Cannot insert null element");
+    public void insert(int balance, String accountId) {
+        if (accountId == null) {
+            throw new IllegalArgumentException("Account ID cannot be null");
         }
 
         if (size >= capacity) {
             resize();
         }
 
-        heap[size] = element;
+        balances[size] = balance;
+        accountIds[size] = accountId;
         heapifyUp(size);
         size++;
     }
 
     /**
-     * Extract the minimum element (root) from the heap
+     * Extract the account with minimum balance from the heap
      */
-    public T extractMin() {
+    public String extractMin() {
         if (isEmpty()) {
             throw new RuntimeException("Heap is empty");
         }
 
-        T min = heap[0];
-        heap[0] = heap[size - 1];
-        heap[size - 1] = null;
+        String minAccountId = accountIds[0];
+
+        // Move the last element to the root
+        balances[0] = balances[size - 1];
+        accountIds[0] = accountIds[size - 1];
+
+        // Clear the last element
+        accountIds[size - 1] = null;
         size--;
 
         if (size > 0) {
             heapifyDown(0);
         }
 
-        return min;
+        return minAccountId;
     }
 
     /**
-     * Peek at the minimum element without removing it
+     * Peek at the account with minimum balance without removing it
      */
-    public T peek() {
+    public String peekAccount() {
         if (isEmpty()) {
             throw new RuntimeException("Heap is empty");
         }
-        return heap[0];
+        return accountIds[0];
+    }
+
+    /**
+     * Get the minimum balance
+     */
+    public int peekBalance() {
+        if (isEmpty()) {
+            throw new RuntimeException("Heap is empty");
+        }
+        return balances[0];
+    }
+
+    /**
+     * Get accounts with balances below the threshold
+     */
+    public String[] getAccountsBelowThreshold(int threshold) {
+        // Count accounts below threshold
+        int count = 0;
+        for (int i = 0; i < size; i++) {
+            if (balances[i] < threshold) {
+                count++;
+            }
+        }
+
+        // Create result array
+        String[] result = new String[count];
+        int index = 0;
+
+        for (int i = 0; i < size; i++) {
+            if (balances[i] < threshold) {
+                result[index++] = accountIds[i];
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Update the balance for a specific account
+     */
+    public void updateBalance(String accountId, int newBalance) {
+        for (int i = 0; i < size; i++) {
+            if (accountIds[i] != null && accountIds[i].equals(accountId)) {
+                int oldBalance = balances[i];
+                balances[i] = newBalance;
+
+                if (newBalance < oldBalance) {
+                    heapifyUp(i);
+                } else {
+                    heapifyDown(i);
+                }
+                return;
+            }
+        }
+
+        // Account not found, add it
+        insert(newBalance, accountId);
     }
 
     /**
@@ -103,9 +168,9 @@ public class MinHeap<T extends Comparable<T>> {
      * Heapify up operation to maintain heap property after insertion
      */
     private void heapifyUp(int index) {
-        int parentIndex = getParentIndex(index);
+        int parentIndex = (index - 1) / 2;
 
-        if (parentIndex >= 0 && heap[index].compareTo(heap[parentIndex]) < 0) {
+        if (index > 0 && balances[index] < balances[parentIndex]) {
             swap(index, parentIndex);
             heapifyUp(parentIndex);
         }
@@ -115,15 +180,15 @@ public class MinHeap<T extends Comparable<T>> {
      * Heapify down operation to maintain heap property after extraction
      */
     private void heapifyDown(int index) {
-        int leftChild = getLeftChildIndex(index);
-        int rightChild = getRightChildIndex(index);
+        int leftChild = 2 * index + 1;
+        int rightChild = 2 * index + 2;
         int smallest = index;
 
-        if (leftChild < size && heap[leftChild].compareTo(heap[smallest]) < 0) {
+        if (leftChild < size && balances[leftChild] < balances[smallest]) {
             smallest = leftChild;
         }
 
-        if (rightChild < size && heap[rightChild].compareTo(heap[smallest]) < 0) {
+        if (rightChild < size && balances[rightChild] < balances[smallest]) {
             smallest = rightChild;
         }
 
@@ -134,48 +199,35 @@ public class MinHeap<T extends Comparable<T>> {
     }
 
     /**
-     * Get parent index of given index
-     */
-    private int getParentIndex(int index) {
-        return (index - 1) / 2;
-    }
-
-    /**
-     * Get left child index of given index
-     */
-    private int getLeftChildIndex(int index) {
-        return 2 * index + 1;
-    }
-
-    /**
-     * Get right child index of given index
-     */
-    private int getRightChildIndex(int index) {
-        return 2 * index + 2;
-    }
-
-    /**
      * Swap elements at two indices
      */
     private void swap(int i, int j) {
-        T temp = heap[i];
-        heap[i] = heap[j];
-        heap[j] = temp;
+        // Swap balances
+        int tempBalance = balances[i];
+        balances[i] = balances[j];
+        balances[j] = tempBalance;
+
+        // Swap account IDs
+        String tempId = accountIds[i];
+        accountIds[i] = accountIds[j];
+        accountIds[j] = tempId;
     }
 
     /**
      * Resize the heap when it becomes full
      */
-    @SuppressWarnings("unchecked")
     private void resize() {
         int newCapacity = capacity * 2;
-        T[] newHeap = (T[]) new Comparable[newCapacity];
 
-        for (int i = 0; i < size; i++) {
-            newHeap[i] = heap[i];
-        }
+        int[] newBalances = new int[newCapacity];
+        String[] newAccountIds = new String[newCapacity];
 
-        heap = newHeap;
+        // Copy elements
+        System.arraycopy(balances, 0, newBalances, 0, size);
+        System.arraycopy(accountIds, 0, newAccountIds, 0, size);
+
+        balances = newBalances;
+        accountIds = newAccountIds;
         capacity = newCapacity;
     }
 
@@ -184,37 +236,59 @@ public class MinHeap<T extends Comparable<T>> {
      */
     public void clear() {
         for (int i = 0; i < size; i++) {
-            heap[i] = null;
+            accountIds[i] = null;
         }
         size = 0;
     }
 
     /**
-     * Convert heap to array (not in sorted order)
+     * Get all account IDs in the heap (not in sorted order)
      */
-    @SuppressWarnings("unchecked")
-    public T[] toArray() {
-        T[] result = (T[]) new Comparable[size];
+    public String[] getAccountIds() {
+        String[] result = new String[size];
         for (int i = 0; i < size; i++) {
-            result[i] = heap[i];
+            result[i] = accountIds[i];
         }
         return result;
     }
 
     /**
-     * Build a heap from an existing array
+     * Get all balances in the heap (not in sorted order)
      */
-    @SuppressWarnings("unchecked")
-    public static <T extends Comparable<T>> MinHeap<T> buildHeap(T[] array) {
-        MinHeap<T> heap = new MinHeap<>(array.length * 2);
+    public int[] getBalances() {
+        int[] result = new int[size];
+        System.arraycopy(balances, 0, result, 0, size);
+        return result;
+    }
 
-        for (T element : array) {
-            if (element != null) {
-                heap.insert(element);
+    /**
+     * Build a heap from existing account data
+     */
+    public static MinHeap buildHeap(int[] balances, String[] accountIds) {
+        if (balances.length != accountIds.length) {
+            throw new IllegalArgumentException("Balance and account ID arrays must be the same length");
+        }
+
+        MinHeap heap = new MinHeap(balances.length * 2);
+
+        for (int i = 0; i < balances.length; i++) {
+            if (accountIds[i] != null) {
+                heap.insert(balances[i], accountIds[i]);
             }
         }
 
         return heap;
+    }
+
+    /**
+     * Print the heap for debugging
+     */
+    public void printHeap() {
+        System.out.println("\nHeap Contents (Balance : AccountID):");
+        for (int i = 0; i < size; i++) {
+            System.out.println(balances[i] + " : " + accountIds[i]);
+        }
+        System.out.println();
     }
 
     @Override
@@ -225,7 +299,7 @@ public class MinHeap<T extends Comparable<T>> {
 
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < size; i++) {
-            sb.append(heap[i]);
+            sb.append(balances[i]).append(":").append(accountIds[i]);
             if (i < size - 1) {
                 sb.append(", ");
             }

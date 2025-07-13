@@ -106,22 +106,12 @@ public class ExpenditureService {
     }
 
     /**
-     * Get expenditures within a date range
+     * Get expenditures within a date range using binary search
+     * Time Complexity: O(log n + k) where k is number of results
      */
     public CustomLinkedList<Expenditure> getExpendituresByDateRange(LocalDate startDate, LocalDate endDate) {
-        CustomLinkedList<Expenditure> rangeExpenditures = new CustomLinkedList<>();
-
-        // Iterate through all expenditures and filter by date range
-        for (Expenditure exp : expenditures.values()) {
-            LocalDate expDate = exp.getDate();
-            // Check if the date is within range (inclusive)
-            if ((expDate.isEqual(startDate) || expDate.isAfter(startDate)) && 
-                (expDate.isEqual(endDate) || expDate.isBefore(endDate))) {
-                rangeExpenditures.add(exp);
-            }
-        }
-
-        return rangeExpenditures;
+        // Use binary search for efficient date range searching
+        return binarySearchDateRange(startDate, endDate);
     }
 
     /**
@@ -218,24 +208,16 @@ public class ExpenditureService {
     }
 
     /**
-     * Get expenditures within a specific amount range
+     * Get expenditures within a specific amount range using binary search
+     * Time Complexity: O(log n + k) where k is number of results
      * 
      * @param minAmount The minimum amount (inclusive)
      * @param maxAmount The maximum amount (inclusive)
      * @return A list of expenditures within the specified amount range
      */
     public CustomLinkedList<Expenditure> getExpendituresByAmountRange(double minAmount, double maxAmount) {
-        CustomLinkedList<Expenditure> result = new CustomLinkedList<>();
-        
-        // Iterate through all expenditures and filter by amount range
-        for (Expenditure exp : expenditures.values()) {
-            double amount = exp.getAmount();
-            if (amount >= minAmount && amount <= maxAmount) {
-                result.add(exp);
-            }
-        }
-        
-        return result;
+        // Use binary search for efficient range searching
+        return binarySearchAmountRange(minAmount, maxAmount);
     }
 
     /**
@@ -523,5 +505,290 @@ public class ExpenditureService {
         } else {
             return "Unknown";
         }
+    }
+    
+    // ================ BINARY SEARCH ALGORITHMS ================
+    
+    /**
+     * Binary search for expenditures by exact amount
+     * Requires expenditures to be sorted by amount first
+     * Time Complexity: O(log n)
+     * 
+     * @param targetAmount The exact amount to search for
+     * @return The first expenditure with the target amount, or null if not found
+     */
+    public Expenditure binarySearchByAmount(double targetAmount) {
+        // First, get sorted array of expenditures by amount
+        CustomLinkedList<Expenditure> sortedList = sortExpendituresByAmount(true);
+        
+        int left = 0;
+        int right = sortedList.size() - 1;
+        
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            Expenditure midExpenditure = sortedList.get(mid);
+            double midAmount = midExpenditure.getAmount();
+            
+            if (Math.abs(midAmount - targetAmount) < 0.01) { // Compare with small tolerance for doubles
+                return midExpenditure; // Found exact match
+            }
+            
+            if (midAmount < targetAmount) {
+                left = mid + 1; // Search right half
+            } else {
+                right = mid - 1; // Search left half
+            }
+        }
+        
+        return null; // Not found
+    }
+    
+    /**
+     * Binary search for expenditures within amount range
+     * Time Complexity: O(log n + k) where k is number of results
+     * 
+     * @param minAmount Minimum amount (inclusive)
+     * @param maxAmount Maximum amount (inclusive)
+     * @return List of expenditures within the amount range
+     */
+    public CustomLinkedList<Expenditure> binarySearchAmountRange(double minAmount, double maxAmount) {
+        CustomLinkedList<Expenditure> results = new CustomLinkedList<>();
+        CustomLinkedList<Expenditure> sortedList = sortExpendituresByAmount(true);
+        
+        if (sortedList.isEmpty()) {
+            return results;
+        }
+        
+        // Find first occurrence >= minAmount
+        int startIndex = findFirstGreaterOrEqualAmount(sortedList, minAmount);
+        
+        // Find last occurrence <= maxAmount
+        int endIndex = findLastLessOrEqualAmount(sortedList, maxAmount);
+        
+        // Add all expenditures in range
+        for (int i = startIndex; i <= endIndex && i < sortedList.size(); i++) {
+            results.add(sortedList.get(i));
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Binary search helper: Find first expenditure with amount >= target
+     */
+    private int findFirstGreaterOrEqualAmount(CustomLinkedList<Expenditure> sortedList, double target) {
+        int left = 0, right = sortedList.size() - 1;
+        int result = sortedList.size(); // If not found, return size (invalid index)
+        
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            double midAmount = sortedList.get(mid).getAmount();
+            
+            if (midAmount >= target) {
+                result = mid;
+                right = mid - 1; // Continue searching left for first occurrence
+            } else {
+                left = mid + 1;
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Binary search helper: Find last expenditure with amount <= target
+     */
+    private int findLastLessOrEqualAmount(CustomLinkedList<Expenditure> sortedList, double target) {
+        int left = 0, right = sortedList.size() - 1;
+        int result = -1; // If not found, return -1
+        
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            double midAmount = sortedList.get(mid).getAmount();
+            
+            if (midAmount <= target) {
+                result = mid;
+                left = mid + 1; // Continue searching right for last occurrence
+            } else {
+                right = mid - 1;
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Binary search for expenditures by date range
+     * Time Complexity: O(log n + k) where k is number of results
+     * 
+     * @param startDate Start date (inclusive)
+     * @param endDate End date (inclusive)
+     * @return List of expenditures within the date range
+     */
+    public CustomLinkedList<Expenditure> binarySearchDateRange(LocalDate startDate, LocalDate endDate) {
+        CustomLinkedList<Expenditure> results = new CustomLinkedList<>();
+        CustomLinkedList<Expenditure> sortedList = sortExpendituresByDate(true);
+        
+        if (sortedList.isEmpty()) {
+            return results;
+        }
+        
+        // Find first occurrence >= startDate
+        int startIndex = findFirstGreaterOrEqualDate(sortedList, startDate);
+        
+        // Find last occurrence <= endDate
+        int endIndex = findLastLessOrEqualDate(sortedList, endDate);
+        
+        // Add all expenditures in range
+        for (int i = startIndex; i <= endIndex && i < sortedList.size(); i++) {
+            results.add(sortedList.get(i));
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Binary search helper: Find first expenditure with date >= target
+     */
+    private int findFirstGreaterOrEqualDate(CustomLinkedList<Expenditure> sortedList, LocalDate target) {
+        int left = 0, right = sortedList.size() - 1;
+        int result = sortedList.size(); // If not found, return size (invalid index)
+        
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            LocalDate midDate = sortedList.get(mid).getDate();
+            
+            if (midDate.isEqual(target) || midDate.isAfter(target)) {
+                result = mid;
+                right = mid - 1; // Continue searching left for first occurrence
+            } else {
+                left = mid + 1;
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Binary search helper: Find last expenditure with date <= target
+     */
+    private int findLastLessOrEqualDate(CustomLinkedList<Expenditure> sortedList, LocalDate target) {
+        int left = 0, right = sortedList.size() - 1;
+        int result = -1; // If not found, return -1
+        
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            LocalDate midDate = sortedList.get(mid).getDate();
+            
+            if (midDate.isEqual(target) || midDate.isBefore(target)) {
+                result = mid;
+                left = mid + 1; // Continue searching right for last occurrence
+            } else {
+                right = mid - 1;
+            }
+        }
+        
+        return result;
+    }
+    
+    // ================ PERFORMANCE COMPARISON METHODS ================
+    
+    /**
+     * Get expenditures by category using linear search (original method for comparison)
+     * Time Complexity: O(n)
+     * 
+     * @param category The category to search for
+     * @return List of expenditures in the specified category
+     */
+    public CustomLinkedList<Expenditure> getExpendituresByCategoryLinear(String category) {
+        CustomLinkedList<Expenditure> categoryExpenditures = new CustomLinkedList<>();
+
+        // Linear search through all expenditures
+        for (Expenditure exp : expenditures.values()) {
+            if (exp.getCategory().equalsIgnoreCase(category)) {
+                categoryExpenditures.add(exp);
+            }
+        }
+
+        return categoryExpenditures;
+    }
+    
+    /**
+     * Performance test method to compare linear vs binary search
+     * 
+     * @param minAmount Minimum amount for range search
+     * @param maxAmount Maximum amount for range search
+     */
+    public void performanceComparison(double minAmount, double maxAmount) {
+        System.out.println("\n=== PERFORMANCE COMPARISON ===");
+        
+        long startTime, endTime;
+        
+        // Test linear filtering (original method)
+        startTime = System.nanoTime();
+        CustomLinkedList<Expenditure> linearResults = new CustomLinkedList<>();
+        for (Expenditure exp : expenditures.values()) {
+            double amount = exp.getAmount();
+            if (amount >= minAmount && amount <= maxAmount) {
+                linearResults.add(exp);
+            }
+        }
+        endTime = System.nanoTime();
+        long linearTime = endTime - startTime;
+        
+        // Test binary search
+        startTime = System.nanoTime();
+        CustomLinkedList<Expenditure> binaryResults = binarySearchAmountRange(minAmount, maxAmount);
+        endTime = System.nanoTime();
+        long binaryTime = endTime - startTime;
+        
+        System.out.println("Linear Search Time: " + linearTime + " nanoseconds");
+        System.out.println("Binary Search Time: " + binaryTime + " nanoseconds");
+        System.out.println("Results count - Linear: " + linearResults.size() + ", Binary: " + binaryResults.size());
+        
+        if (linearTime > 0) {
+            double speedup = (double) linearTime / binaryTime;
+            System.out.println("Binary search is " + String.format("%.2f", speedup) + "x faster");
+        }
+        
+        System.out.println("==============================\n");
+    }
+
+    /**
+     * Find expenditure by exact amount using binary search
+     * Time Complexity: O(log n)
+     * 
+     * @param exactAmount The exact amount to search for
+     * @return The first expenditure with the exact amount, or null if not found
+     */
+    public Expenditure findExpenditureByExactAmount(double exactAmount) {
+        return binarySearchByAmount(exactAmount);
+    }
+    
+    /**
+     * Find all expenditures with exact amount using binary search
+     * Time Complexity: O(log n + k) where k is number of matches
+     * 
+     * @param exactAmount The exact amount to search for
+     * @return List of all expenditures with the exact amount
+     */
+    public CustomLinkedList<Expenditure> findAllExpendituresByExactAmount(double exactAmount) {
+        CustomLinkedList<Expenditure> results = new CustomLinkedList<>();
+        CustomLinkedList<Expenditure> sortedList = sortExpendituresByAmount(true);
+        
+        // Find first occurrence of the exact amount
+        int firstIndex = findFirstGreaterOrEqualAmount(sortedList, exactAmount);
+        
+        // Collect all expenditures with the exact amount
+        for (int i = firstIndex; i < sortedList.size(); i++) {
+            Expenditure exp = sortedList.get(i);
+            if (Math.abs(exp.getAmount() - exactAmount) < 0.01) { // Small tolerance for double comparison
+                results.add(exp);
+            } else {
+                break; // Since list is sorted, no more matches after this
+            }
+        }
+        
+        return results;
     }
 }

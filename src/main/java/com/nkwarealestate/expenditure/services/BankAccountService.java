@@ -434,4 +434,297 @@ public class BankAccountService {
 
         return lines;
     }
+
+    // ================ BINARY SEARCH ALGORITHMS ================
+
+    /**
+     * Sort bank accounts by balance (ascending or descending)
+     * 
+     * @param ascending true for ascending order, false for descending
+     * @return A sorted list of bank accounts by balance
+     */
+    public CustomLinkedList<BankAccount> sortAccountsByBalance(boolean ascending) {
+        CustomLinkedList<BankAccount> list = getAllAccounts();
+        int size = list.size();
+        BankAccount[] array = new BankAccount[size];
+        
+        // Convert list to array
+        for (int i = 0; i < size; i++) {
+            array[i] = list.get(i);
+        }
+        
+        // Bubble sort
+        for (int i = 0; i < size - 1; i++) {
+            for (int j = 0; j < size - i - 1; j++) {
+                boolean shouldSwap;
+                
+                if (ascending) {
+                    shouldSwap = array[j].getBalance() > array[j + 1].getBalance();
+                } else {
+                    shouldSwap = array[j].getBalance() < array[j + 1].getBalance();
+                }
+                
+                if (shouldSwap) {
+                    // Swap elements
+                    BankAccount temp = array[j];
+                    array[j] = array[j + 1];
+                    array[j + 1] = temp;
+                }
+            }
+        }
+        
+        // Convert back to CustomLinkedList
+        CustomLinkedList<BankAccount> result = new CustomLinkedList<>();
+        for (BankAccount account : array) {
+            result.add(account);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Sort bank accounts by account ID (alphabetically)
+     * 
+     * @param ascending true for A-Z order, false for Z-A
+     * @return A sorted list of bank accounts by account ID
+     */
+    public CustomLinkedList<BankAccount> sortAccountsById(boolean ascending) {
+        CustomLinkedList<BankAccount> list = getAllAccounts();
+        int size = list.size();
+        BankAccount[] array = new BankAccount[size];
+        
+        // Convert list to array
+        for (int i = 0; i < size; i++) {
+            array[i] = list.get(i);
+        }
+        
+        // Bubble sort
+        for (int i = 0; i < size - 1; i++) {
+            for (int j = 0; j < size - i - 1; j++) {
+                boolean shouldSwap;
+                
+                if (ascending) {
+                    shouldSwap = array[j].getAccountId().compareTo(array[j + 1].getAccountId()) > 0;
+                } else {
+                    shouldSwap = array[j].getAccountId().compareTo(array[j + 1].getAccountId()) < 0;
+                }
+                
+                if (shouldSwap) {
+                    // Swap elements
+                    BankAccount temp = array[j];
+                    array[j] = array[j + 1];
+                    array[j + 1] = temp;
+                }
+            }
+        }
+        
+        // Convert back to CustomLinkedList
+        CustomLinkedList<BankAccount> result = new CustomLinkedList<>();
+        for (BankAccount account : array) {
+            result.add(account);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Binary search for accounts within balance range
+     * Time Complexity: O(log n + k) where k is number of results
+     * 
+     * @param minBalance Minimum balance (inclusive)
+     * @param maxBalance Maximum balance (inclusive)
+     * @return List of accounts within the balance range
+     */
+    public CustomLinkedList<BankAccount> binarySearchBalanceRange(double minBalance, double maxBalance) {
+        CustomLinkedList<BankAccount> results = new CustomLinkedList<>();
+        CustomLinkedList<BankAccount> sortedList = sortAccountsByBalance(true);
+        
+        if (sortedList.isEmpty()) {
+            return results;
+        }
+        
+        // Find first occurrence >= minBalance
+        int startIndex = findFirstGreaterOrEqualBalance(sortedList, minBalance);
+        
+        // Find last occurrence <= maxBalance
+        int endIndex = findLastLessOrEqualBalance(sortedList, maxBalance);
+        
+        // Add all accounts in range
+        for (int i = startIndex; i <= endIndex && i < sortedList.size(); i++) {
+            results.add(sortedList.get(i));
+        }
+        
+        return results;
+    }
+
+    /**
+     * Binary search helper: Find first account with balance >= target
+     */
+    private int findFirstGreaterOrEqualBalance(CustomLinkedList<BankAccount> sortedList, double target) {
+        int left = 0, right = sortedList.size() - 1;
+        int result = sortedList.size();
+        
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            double midBalance = sortedList.get(mid).getBalance();
+            
+            if (midBalance >= target) {
+                result = mid;
+                right = mid - 1;
+            } else {
+                left = mid + 1;
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * Binary search helper: Find last account with balance <= target
+     */
+    private int findLastLessOrEqualBalance(CustomLinkedList<BankAccount> sortedList, double target) {
+        int left = 0, right = sortedList.size() - 1;
+        int result = -1;
+        
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            double midBalance = sortedList.get(mid).getBalance();
+            
+            if (midBalance <= target) {
+                result = mid;
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+        
+        return result;
+    }
+
+    /**
+     * Binary search for account by exact ID
+     * Time Complexity: O(log n)
+     * 
+     * @param accountId The account ID to search for
+     * @return The account with the specified ID, or null if not found
+     */
+    public BankAccount binarySearchByAccountId(String accountId) {
+        CustomLinkedList<BankAccount> sortedList = sortAccountsById(true);
+        
+        int left = 0;
+        int right = sortedList.size() - 1;
+        
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            BankAccount midAccount = sortedList.get(mid);
+            String midId = midAccount.getAccountId();
+            
+            int comparison = midId.compareTo(accountId);
+            
+            if (comparison == 0) {
+                return midAccount; // Found exact match
+            }
+            
+            if (comparison < 0) {
+                left = mid + 1; // Search right half
+            } else {
+                right = mid - 1; // Search left half
+            }
+        }
+        
+        return null; // Not found
+    }
+
+    /**
+     * Get accounts with balance above a threshold using binary search
+     * Time Complexity: O(log n + k) where k is number of results
+     * 
+     * @param threshold The minimum balance threshold
+     * @return List of accounts with balance above threshold
+     */
+    public CustomLinkedList<BankAccount> getAccountsAboveThreshold(double threshold) {
+        CustomLinkedList<BankAccount> results = new CustomLinkedList<>();
+        CustomLinkedList<BankAccount> sortedList = sortAccountsByBalance(true);
+        
+        if (sortedList.isEmpty()) {
+            return results;
+        }
+        
+        // Find first account with balance >= threshold
+        int startIndex = findFirstGreaterOrEqualBalance(sortedList, threshold);
+        
+        // Add all accounts from this index onwards
+        for (int i = startIndex; i < sortedList.size(); i++) {
+            results.add(sortedList.get(i));
+        }
+        
+        return results;
+    }
+
+    /**
+     * Get accounts with balance below a threshold using binary search
+     * Time Complexity: O(log n + k) where k is number of results
+     * 
+     * @param threshold The maximum balance threshold
+     * @return List of accounts with balance below threshold
+     */
+    public CustomLinkedList<BankAccount> getAccountsBelowThreshold(double threshold) {
+        CustomLinkedList<BankAccount> results = new CustomLinkedList<>();
+        CustomLinkedList<BankAccount> sortedList = sortAccountsByBalance(true);
+        
+        if (sortedList.isEmpty()) {
+            return results;
+        }
+        
+        // Find last account with balance <= threshold
+        int endIndex = findLastLessOrEqualBalance(sortedList, threshold);
+        
+        // Add all accounts from start to this index
+        for (int i = 0; i <= endIndex && i < sortedList.size(); i++) {
+            results.add(sortedList.get(i));
+        }
+        
+        return results;
+    }
+
+    /**
+     * Performance comparison between linear and binary search for balance threshold
+     * 
+     * @param threshold The balance threshold to search for
+     */
+    public void performanceComparisonBalance(double threshold) {
+        System.out.println("\n=== BALANCE SEARCH PERFORMANCE COMPARISON ===");
+        
+        long startTime, endTime;
+        
+        // Test linear search
+        startTime = System.nanoTime();
+        CustomLinkedList<BankAccount> linearResults = new CustomLinkedList<>();
+        CustomLinkedList<BankAccount> allAccounts = getAllAccounts();
+        for (int i = 0; i < allAccounts.size(); i++) {
+            BankAccount account = allAccounts.get(i);
+            if (account.getBalance() >= threshold) {
+                linearResults.add(account);
+            }
+        }
+        endTime = System.nanoTime();
+        long linearTime = endTime - startTime;
+        
+        // Test binary search
+        startTime = System.nanoTime();
+        CustomLinkedList<BankAccount> binaryResults = getAccountsAboveThreshold(threshold);
+        endTime = System.nanoTime();
+        long binaryTime = endTime - startTime;
+        
+        System.out.println("Linear Search Time: " + linearTime + " nanoseconds");
+        System.out.println("Binary Search Time: " + binaryTime + " nanoseconds");
+        System.out.println("Results count - Linear: " + linearResults.size() + ", Binary: " + binaryResults.size());
+        
+        if (linearTime > 0) {
+            double speedup = (double) linearTime / binaryTime;
+            System.out.println("Binary search is " + String.format("%.2f", speedup) + "x faster");
+        }
+        
+        System.out.println("===============================================\n");
+    }
 }

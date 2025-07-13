@@ -8,10 +8,8 @@ import com.nkwarealestate.expenditure.datastructures.CustomTree;
 
 import java.time.LocalDate;
 import java.time.Month;
-import java.time.Year;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
 
 /**
  * Service for financial analysis and forecasting
@@ -328,5 +326,327 @@ public class FinancialAnalysisService {
         }
         
         return report.toString();
+    }
+
+    // ================ ENHANCED ANALYSIS WITH BINARY SEARCH ================
+
+    /**
+     * Find expenditures within a specific amount threshold using optimized search
+     * Time Complexity: O(log n + k) where k is number of results
+     * 
+     * @param minThreshold Minimum amount threshold
+     * @param maxThreshold Maximum amount threshold
+     * @return List of expenditures within the threshold range
+     */
+    public CustomLinkedList<Expenditure> findExpendituresInAmountRange(double minThreshold, double maxThreshold) {
+        // Use the binary search from ExpenditureService for efficiency
+        return expenditureService.binarySearchAmountRange(minThreshold, maxThreshold);
+    }
+
+    /**
+     * Analyze expenditure patterns within date ranges using binary search
+     * Time Complexity: O(log n + k) where k is number of results per range
+     * 
+     * @param startDate Analysis start date
+     * @param endDate Analysis end date
+     * @param intervalMonths Number of months per analysis interval
+     * @return Detailed pattern analysis report
+     */
+    public String analyzeExpenditurePatternsOptimized(LocalDate startDate, LocalDate endDate, int intervalMonths) {
+        StringBuilder report = new StringBuilder();
+        report.append("EXPENDITURE PATTERN ANALYSIS (OPTIMIZED)\n");
+        report.append("========================================\n\n");
+        
+        LocalDate currentStart = startDate;
+        double totalAmount = 0.0;
+        int totalCount = 0;
+        
+        // Analyze data in intervals using binary search
+        while (currentStart.isBefore(endDate)) {
+            LocalDate currentEnd = currentStart.plusMonths(intervalMonths);
+            if (currentEnd.isAfter(endDate)) {
+                currentEnd = endDate;
+            }
+            
+            // Use binary search for efficient date range retrieval
+            CustomLinkedList<Expenditure> intervalExpenditures = 
+                    expenditureService.binarySearchDateRange(currentStart, currentEnd);
+            
+            // Analyze this interval
+            double intervalAmount = 0.0;
+            CustomHashMap<String, Double> categoryTotals = new CustomHashMap<>();
+            CustomHashMap<Phase, Double> phaseTotals = new CustomHashMap<>();
+            
+            for (int i = 0; i < intervalExpenditures.size(); i++) {
+                Expenditure exp = intervalExpenditures.get(i);
+                double amount = exp.getAmount();
+                intervalAmount += amount;
+                
+                // Category analysis
+                String category = exp.getCategory();
+                Double categoryTotal = categoryTotals.get(category);
+                categoryTotals.put(category, (categoryTotal == null) ? amount : categoryTotal + amount);
+                
+                // Phase analysis
+                Phase phase = exp.getPhase();
+                Double phaseTotal = phaseTotals.get(phase);
+                phaseTotals.put(phase, (phaseTotal == null) ? amount : phaseTotal + amount);
+            }
+            
+            totalAmount += intervalAmount;
+            totalCount += intervalExpenditures.size();
+            
+            // Add interval report
+            report.append(String.format("Period: %s to %s\n", 
+                    currentStart.format(dateFormatter), currentEnd.format(dateFormatter)));
+            report.append(String.format("Expenditures: %d, Amount: GHS %.2f\n", 
+                    intervalExpenditures.size(), intervalAmount));
+            
+            // Top categories
+            if (categoryTotals.size() > 0) {
+                report.append("Top categories:\n");
+                CustomLinkedList<String> sortedCategories = sortCategoriesByAmount(categoryTotals);
+                for (int i = 0; i < Math.min(3, sortedCategories.size()); i++) {
+                    String category = sortedCategories.get(i);
+                    double amount = categoryTotals.get(category);
+                    report.append(String.format("  - %s: GHS %.2f\n", category, amount));
+                }
+            }
+            
+            report.append("\n");
+            currentStart = currentEnd.plusDays(1);
+        }
+        
+        // Summary statistics
+        report.append("SUMMARY\n");
+        report.append("=======\n");
+        report.append(String.format("Total Period: %s to %s\n", 
+                startDate.format(dateFormatter), endDate.format(dateFormatter)));
+        report.append(String.format("Total Expenditures: %d\n", totalCount));
+        report.append(String.format("Total Amount: GHS %.2f\n", totalAmount));
+        
+        if (totalCount > 0) {
+            double averageAmount = totalAmount / totalCount;
+            report.append(String.format("Average per Expenditure: GHS %.2f\n", averageAmount));
+            
+            long totalDays = ChronoUnit.DAYS.between(startDate, endDate);
+            if (totalDays > 0) {
+                double dailyAverage = totalAmount / totalDays;
+                report.append(String.format("Daily Average: GHS %.2f\n", dailyAverage));
+            }
+        }
+        
+        return report.toString();
+    }
+
+    /**
+     * Helper method to sort categories by amount (descending)
+     */
+    private CustomLinkedList<String> sortCategoriesByAmount(CustomHashMap<String, Double> categoryTotals) {
+        // Convert to arrays for sorting
+        CustomLinkedList<String> categories = new CustomLinkedList<>();
+        CustomLinkedList<Double> amounts = new CustomLinkedList<>();
+        
+        for (CustomHashMap.Entry<String, Double> entry : categoryTotals.entries()) {
+            categories.add(entry.getKey());
+            amounts.add(entry.getValue());
+        }
+        
+        // Convert to arrays for easier swapping
+        int size = categories.size();
+        String[] categoryArray = new String[size];
+        Double[] amountArray = new Double[size];
+        
+        for (int i = 0; i < size; i++) {
+            categoryArray[i] = categories.get(i);
+            amountArray[i] = amounts.get(i);
+        }
+        
+        // Simple bubble sort by amount (descending)
+        for (int i = 0; i < size - 1; i++) {
+            for (int j = 0; j < size - i - 1; j++) {
+                if (amountArray[j] < amountArray[j + 1]) {
+                    // Swap amounts
+                    Double tempAmount = amountArray[j];
+                    amountArray[j] = amountArray[j + 1];
+                    amountArray[j + 1] = tempAmount;
+                    
+                    // Swap categories
+                    String tempCategory = categoryArray[j];
+                    categoryArray[j] = categoryArray[j + 1];
+                    categoryArray[j + 1] = tempCategory;
+                }
+            }
+        }
+        
+        // Convert back to CustomLinkedList
+        CustomLinkedList<String> result = new CustomLinkedList<>();
+        for (String category : categoryArray) {
+            result.add(category);
+        }
+        
+        return result;
+    }
+
+    /**
+     * Find high-value expenditures efficiently using binary search
+     * Time Complexity: O(log n + k) where k is number of high-value expenditures
+     * 
+     * @param percentile The percentile threshold (e.g., 0.9 for top 10%)
+     * @return List of high-value expenditures
+     */
+    public CustomLinkedList<Expenditure> findHighValueExpenditures(double percentile) {
+        // Get all expenditures sorted by amount
+        CustomLinkedList<Expenditure> sortedExpenditures = expenditureService.sortExpendituresByAmount(true);
+        
+        if (sortedExpenditures.isEmpty()) {
+            return new CustomLinkedList<>();
+        }
+        
+        // Calculate threshold index
+        int thresholdIndex = (int) (sortedExpenditures.size() * percentile);
+        if (thresholdIndex >= sortedExpenditures.size()) {
+            thresholdIndex = sortedExpenditures.size() - 1;
+        }
+        
+        double thresholdAmount = sortedExpenditures.get(thresholdIndex).getAmount();
+        
+        // Use binary search to find all expenditures >= threshold
+        return expenditureService.binarySearchAmountRange(thresholdAmount, Double.MAX_VALUE);
+    }
+
+    /**
+     * Analyze cost trends over time using optimized data retrieval
+     * 
+     * @param category Optional category to focus on (null for all categories)
+     * @param monthsBack Number of months to analyze
+     * @return Trend analysis report
+     */
+    public String analyzeCostTrendsOptimized(String category, int monthsBack) {
+        StringBuilder report = new StringBuilder();
+        report.append("COST TREND ANALYSIS (OPTIMIZED)\n");
+        report.append("===============================\n\n");
+        
+        if (category != null) {
+            report.append(String.format("Category Focus: %s\n", category));
+        } else {
+            report.append("Category Focus: All Categories\n");
+        }
+        report.append(String.format("Analysis Period: %d months\n\n", monthsBack));
+        
+        LocalDate endDate = LocalDate.now();
+        CustomLinkedList<Double> monthlyTotals = new CustomLinkedList<>();
+        CustomLinkedList<String> monthLabels = new CustomLinkedList<>();
+        
+        // Collect monthly data using binary search
+        for (int i = monthsBack - 1; i >= 0; i--) {
+            LocalDate monthStart = endDate.minusMonths(i + 1).withDayOfMonth(1);
+            LocalDate monthEnd = monthStart.plusMonths(1).minusDays(1);
+            
+            // Use binary search for efficient date range retrieval
+            CustomLinkedList<Expenditure> monthExpenditures = 
+                    expenditureService.binarySearchDateRange(monthStart, monthEnd);
+            
+            double monthTotal = 0.0;
+            
+            for (int j = 0; j < monthExpenditures.size(); j++) {
+                Expenditure exp = monthExpenditures.get(j);
+                if (category == null || exp.getCategory().equalsIgnoreCase(category)) {
+                    monthTotal += exp.getAmount();
+                }
+            }
+            
+            monthlyTotals.add(monthTotal);
+            monthLabels.add(monthStart.getMonth().toString() + " " + monthStart.getYear());
+        }
+        
+        // Generate trend report
+        report.append("Monthly Breakdown:\n");
+        double totalTrend = 0.0;
+        
+        for (int i = 0; i < monthlyTotals.size(); i++) {
+            double amount = monthlyTotals.get(i);
+            String label = monthLabels.get(i);
+            report.append(String.format("%-15s: GHS %,10.2f", label, amount));
+            
+            // Calculate trend indicator
+            if (i > 0) {
+                double previousAmount = monthlyTotals.get(i - 1);
+                if (previousAmount > 0) {
+                    double changePercent = ((amount - previousAmount) / previousAmount) * 100;
+                    if (changePercent > 5) {
+                        report.append(" ↑ (+").append(String.format("%.1f", changePercent)).append("%)");
+                    } else if (changePercent < -5) {
+                        report.append(" ↓ (").append(String.format("%.1f", changePercent)).append("%)");
+                    } else {
+                        report.append(" → (").append(String.format("%.1f", changePercent)).append("%)");
+                    }
+                    totalTrend += changePercent;
+                }
+            }
+            report.append("\n");
+        }
+        
+        // Trend summary
+        report.append("\nTRend Summary:\n");
+        if (monthsBack > 1) {
+            double averageTrend = totalTrend / (monthsBack - 1);
+            report.append(String.format("Average monthly change: %.2f%%\n", averageTrend));
+            
+            if (averageTrend > 5) {
+                report.append("Status: INCREASING TREND - Monitor costs closely\n");
+            } else if (averageTrend < -5) {
+                report.append("Status: DECREASING TREND - Cost control effective\n");
+            } else {
+                report.append("Status: STABLE TREND - Consistent spending pattern\n");
+            }
+        }
+        
+        return report.toString();
+    }
+
+    /**
+     * Performance comparison for financial analysis queries
+     * 
+     * @param startDate Start date for analysis
+     * @param endDate End date for analysis
+     */
+    public void performanceComparisonFinancialAnalysis(LocalDate startDate, LocalDate endDate) {
+        System.out.println("\n=== FINANCIAL ANALYSIS PERFORMANCE COMPARISON ===");
+        
+        long startTime, endTime;
+        
+        // Test linear approach (getting all expenditures first, then filtering)
+        startTime = System.nanoTime();
+        CustomLinkedList<Expenditure> allExpenditures = expenditureService.getAllExpenditures();
+        CustomLinkedList<Expenditure> linearResults = new CustomLinkedList<>();
+        for (int i = 0; i < allExpenditures.size(); i++) {
+            Expenditure exp = allExpenditures.get(i);
+            LocalDate expDate = exp.getDate();
+            if ((expDate.isEqual(startDate) || expDate.isAfter(startDate)) &&
+                (expDate.isEqual(endDate) || expDate.isBefore(endDate))) {
+                linearResults.add(exp);
+            }
+        }
+        endTime = System.nanoTime();
+        long linearTime = endTime - startTime;
+        
+        // Test binary search approach
+        startTime = System.nanoTime();
+        CustomLinkedList<Expenditure> binaryResults = expenditureService.binarySearchDateRange(startDate, endDate);
+        endTime = System.nanoTime();
+        long binaryTime = endTime - startTime;
+        
+        System.out.println("Date range: " + startDate.format(dateFormatter) + " to " + endDate.format(dateFormatter));
+        System.out.println("Linear Search Time: " + linearTime + " nanoseconds");
+        System.out.println("Binary Search Time: " + binaryTime + " nanoseconds");
+        System.out.println("Results count - Linear: " + linearResults.size() + ", Binary: " + binaryResults.size());
+        
+        if (linearTime > 0 && binaryTime > 0) {
+            double speedup = (double) linearTime / binaryTime;
+            System.out.println("Binary search is " + String.format("%.2f", speedup) + "x faster for financial analysis");
+        }
+        
+        System.out.println("===================================================\n");
     }
 }

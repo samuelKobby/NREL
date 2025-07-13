@@ -5,6 +5,8 @@ import com.nkwarealestate.expenditure.services.CategoryService;
 import com.nkwarealestate.expenditure.services.BankAccountService;
 import com.nkwarealestate.expenditure.services.ReceiptService;
 import com.nkwarealestate.expenditure.services.FinancialAnalysisService;
+import com.nkwarealestate.expenditure.services.SystemMonitorService;
+import com.nkwarealestate.expenditure.services.PerformanceTimer;
 import com.nkwarealestate.expenditure.models.Expenditure;
 import com.nkwarealestate.expenditure.models.Phase;
 import com.nkwarealestate.expenditure.models.BankAccount;
@@ -27,11 +29,13 @@ public class MenuSystem {
     private BankAccountService bankAccountService;
     private ReceiptService receiptService;
     private FinancialAnalysisService financialAnalysisService;
+    private SystemMonitorService systemMonitor;
     private DateTimeFormatter dateFormatter;
 
     public MenuSystem() {
         this.scanner = new Scanner(System.in);
         this.running = true;
+        this.systemMonitor = new SystemMonitorService();
         this.expenditureService = new ExpenditureService();
         this.categoryService = new CategoryService();
         this.bankAccountService = new BankAccountService();
@@ -235,10 +239,33 @@ public class MenuSystem {
     }
 
     private void viewAllExpenditures() {
+        PerformanceTimer timer = PerformanceTimer.startNew("View All Expenditures");
+        
         System.out.println("\n=== ALL EXPENDITURES ===");
-        // This will be implemented when we add iteration support to CustomHashMap
+        
+        CustomLinkedList<Expenditure> allExpenditures = expenditureService.getAllExpenditures();
+        
+        if (allExpenditures.isEmpty()) {
+            System.out.println("No expenditures found in the system.");
+            timer.stop();
+            timer.recordInMonitor(systemMonitor);
+            return;
+        }
+        
+        // Display expenditures in table format
+        expenditureService.displayExpendituresTable(allExpenditures);
+        
+        // Show summary
+        System.out.println("\nSUMMARY:");
         System.out.println("Total expenditures: " + expenditureService.getExpenditureCount());
-        System.out.println("Note: Full listing feature will be available in the next update.");
+        System.out.println("Total amount: GHS " + String.format("%.2f", expenditureService.getTotalExpenditureAmount()));
+        
+        timer.stop();
+        timer.recordInMonitor(systemMonitor);
+        
+        // Show performance info for this operation
+        System.out.printf("\n[Performance] Loaded %d expenditures in %.2f ms\n", 
+                allExpenditures.size(), timer.getElapsedTimeMs());
     }
 
     private void updateExpenditure() {
@@ -561,8 +588,17 @@ public class MenuSystem {
                 return;
             }
 
+            PerformanceTimer timer = PerformanceTimer.startNew("Amount Range Search");
             CustomLinkedList<Expenditure> results = expenditureService.getExpendituresByAmountRange(minAmount, maxAmount);
+            timer.stop();
+            
             expenditureService.displayExpendituresTable(results);
+            
+            // Show search performance
+            System.out.printf("\n[Performance] Found %d results in %.2f ms using binary search\n", 
+                    results.size(), timer.getElapsedTimeMs());
+            
+            timer.recordInMonitor(systemMonitor);
 
         } catch (NumberFormatException e) {
             System.out.println("✗ Invalid number format.");
@@ -1083,11 +1119,14 @@ public class MenuSystem {
         while (true) {
             System.out.println("\n================ SYSTEM SETTINGS =================");
             System.out.println("1. System Information");
-            System.out.println("2. Export Data");
-            System.out.println("3. Import Data");
+            System.out.println("2. Performance Monitor");
+            System.out.println("3. Live Performance Meter");
+            System.out.println("4. Performance Report");
+            System.out.println("5. Export Data");
+            System.out.println("6. Import Data");
             System.out.println("0. Back to Main Menu");
             System.out.println("===================================================");
-            System.out.print("Please select an option (0-3): ");
+            System.out.print("Please select an option (0-6): ");
 
             int choice = getMenuChoice();
 
@@ -1096,21 +1135,32 @@ public class MenuSystem {
                     showSystemInfo();
                     break;
                 case 2:
-                    exportData();
+                    showPerformanceMonitor();
                     break;
                 case 3:
+                    showLivePerformanceMeter();
+                    break;
+                case 4:
+                    showPerformanceReport();
+                    break;
+                case 5:
+                    exportData();
+                    break;
+                case 6:
                     importData();
                     break;
                 case 0:
                     return;
                 default:
-                    System.out.println("\nInvalid option. Please select a number between 0-3.");
+                    System.out.println("\nInvalid option. Please select a number between 0-6.");
                     break;
             }
         }
     }
 
     private void showSystemInfo() {
+        PerformanceTimer timer = PerformanceTimer.startNew("System Info Display");
+        
         System.out.println("\n=== SYSTEM INFORMATION ===");
 
         int expenditureCount = expenditureService.getExpenditureCount();
@@ -1135,17 +1185,33 @@ public class MenuSystem {
         System.out.println("- MinHeap: Used for bank account balance monitoring");
         System.out.println("- Graph: Used for account relationship mapping");
 
-        System.out.println("\nRuntime Information:");
-        Runtime runtime = Runtime.getRuntime();
-        long maxMemory = runtime.maxMemory() / 1024 / 1024;
-        long totalMemory = runtime.totalMemory() / 1024 / 1024;
-        long freeMemory = runtime.freeMemory() / 1024 / 1024;
-        long usedMemory = totalMemory - freeMemory;
+        // Enhanced memory and performance information
+        SystemMonitorService.MemoryInfo memInfo = systemMonitor.getCurrentMemoryInfo();
+        System.out.println("\nMemory Usage Information:");
+        System.out.printf("- Maximum Memory: %d MB\n", memInfo.getMaxMemoryMB());
+        System.out.printf("- Allocated Memory: %d MB\n", memInfo.getTotalMemoryMB());
+        System.out.printf("- Used Memory: %d MB (%.1f%%)\n", 
+                memInfo.getUsedMemoryMB(), memInfo.getMemoryUsagePercentage());
+        System.out.printf("- Free Memory: %d MB\n", memInfo.getFreeMemoryMB());
+        System.out.printf("- Memory Efficiency: %s\n", memInfo.getEfficiencyRating());
 
-        System.out.println("- Maximum Memory: " + maxMemory + " MB");
-        System.out.println("- Allocated Memory: " + totalMemory + " MB");
-        System.out.println("- Used Memory: " + usedMemory + " MB");
-        System.out.println("- Free Memory: " + freeMemory + " MB");
+        // System uptime
+        java.time.Duration uptime = systemMonitor.getUptime();
+        System.out.printf("\nSystem Uptime: %d days, %d hours, %d minutes\n",
+                uptime.toDays(), uptime.toHours() % 24, uptime.toMinutes() % 60);
+
+        // Performance statistics
+        SystemMonitorService.PerformanceStats stats = systemMonitor.getPerformanceStats();
+        System.out.println("\nPerformance Statistics:");
+        System.out.printf("- Total Operations Monitored: %d\n", stats.getTotalOperations());
+        if (stats.getTotalOperations() > 0) {
+            System.out.printf("- Average Operation Time: %.2f ms\n", stats.getAverageExecutionTimeMs());
+            System.out.printf("- Fastest Operation: %.2f ms\n", stats.getMinExecutionTimeMs());
+            System.out.printf("- Slowest Operation: %.2f ms\n", stats.getMaxExecutionTimeMs());
+        }
+
+        timer.stop();
+        timer.recordInMonitor(systemMonitor);
 
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
@@ -1165,6 +1231,217 @@ public class MenuSystem {
         System.out.println("This feature would import data from external files.");
         System.out.println("Implementation pending for future enhancement.");
 
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    private void showPerformanceMonitor() {
+        while (true) {
+            System.out.println("\n============== PERFORMANCE MONITOR ===============");
+            System.out.println("1. Test Expenditure Search Performance");
+            System.out.println("2. Test Category Search Performance");
+            System.out.println("3. Test Bank Account Search Performance");
+            System.out.println("4. Test Receipt Search Performance");
+            System.out.println("5. Memory Usage Analysis");
+            System.out.println("6. Run All Performance Tests");
+            System.out.println("0. Back to System Settings");
+            System.out.println("===================================================");
+            System.out.print("Please select an option (0-6): ");
+
+            int choice = getMenuChoice();
+
+            switch (choice) {
+                case 1:
+                    testExpenditureSearchPerformance();
+                    break;
+                case 2:
+                    testCategorySearchPerformance();
+                    break;
+                case 3:
+                    testBankAccountSearchPerformance();
+                    break;
+                case 4:
+                    testReceiptSearchPerformance();
+                    break;
+                case 5:
+                    analyzeMemoryUsage();
+                    break;
+                case 6:
+                    runAllPerformanceTests();
+                    break;
+                case 0:
+                    return;
+                default:
+                    System.out.println("\nInvalid option. Please select a number between 0-6.");
+                    break;
+            }
+        }
+    }
+
+    private void showLivePerformanceMeter() {
+        System.out.println("\n=== LIVE PERFORMANCE METER ===");
+        System.out.println("Displaying real-time system performance...\n");
+        
+        systemMonitor.displayLivePerformanceMeter();
+        
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    private void showPerformanceReport() {
+        PerformanceTimer timer = PerformanceTimer.startNew("Performance Report Generation");
+        
+        System.out.println("\n=== COMPREHENSIVE PERFORMANCE REPORT ===");
+        String report = systemMonitor.generateSystemReport();
+        System.out.println(report);
+        
+        timer.stop();
+        timer.recordInMonitor(systemMonitor);
+        
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    private void testExpenditureSearchPerformance() {
+        System.out.println("\n=== EXPENDITURE SEARCH PERFORMANCE TEST ===");
+        
+        // Test binary search vs linear search for amount range
+        PerformanceTimer timer = PerformanceTimer.startNew("Expenditure Performance Test");
+        expenditureService.performanceComparison(1000.0, 5000.0);
+        timer.stop();
+        timer.recordInMonitor(systemMonitor);
+        
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    private void testCategorySearchPerformance() {
+        System.out.println("\n=== CATEGORY SEARCH PERFORMANCE TEST ===");
+        
+        PerformanceTimer timer = PerformanceTimer.startNew("Category Performance Test");
+        categoryService.performanceComparisonSearch("C");
+        timer.stop();
+        timer.recordInMonitor(systemMonitor);
+        
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    private void testBankAccountSearchPerformance() {
+        System.out.println("\n=== BANK ACCOUNT SEARCH PERFORMANCE TEST ===");
+        
+        PerformanceTimer timer = PerformanceTimer.startNew("Bank Account Performance Test");
+        bankAccountService.performanceComparisonBalance(10000.0);
+        timer.stop();
+        timer.recordInMonitor(systemMonitor);
+        
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    private void testReceiptSearchPerformance() {
+        System.out.println("\n=== RECEIPT SEARCH PERFORMANCE TEST ===");
+        
+        PerformanceTimer timer = PerformanceTimer.startNew("Receipt Performance Test");
+        LocalDate startDate = LocalDate.now().minusMonths(1);
+        LocalDate endDate = LocalDate.now();
+        receiptService.performanceComparisonDateRange(startDate, endDate);
+        timer.stop();
+        timer.recordInMonitor(systemMonitor);
+        
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    private void analyzeMemoryUsage() {
+        System.out.println("\n=== MEMORY USAGE ANALYSIS ===");
+        
+        PerformanceTimer timer = PerformanceTimer.startNew("Memory Analysis");
+        
+        SystemMonitorService.MemoryInfo memInfo = systemMonitor.getCurrentMemoryInfo();
+        
+        System.out.println("Current Memory Status:");
+        System.out.printf("├─ Maximum Available: %d MB\n", memInfo.getMaxMemoryMB());
+        System.out.printf("├─ Currently Allocated: %d MB\n", memInfo.getTotalMemoryMB());
+        System.out.printf("├─ In Use: %d MB (%.1f%%)\n", 
+                memInfo.getUsedMemoryMB(), memInfo.getMemoryUsagePercentage());
+        System.out.printf("├─ Free: %d MB\n", memInfo.getFreeMemoryMB());
+        System.out.printf("└─ Efficiency Rating: %s\n", memInfo.getEfficiencyRating());
+        
+        // Memory usage by data structure (estimated)
+        System.out.println("\nEstimated Memory Usage by Component:");
+        int expenditureCount = expenditureService.getExpenditureCount();
+        int categoryCount = categoryService.getCategoryCount();
+        int accountCount = bankAccountService.getAccountCount();
+        
+        // Rough estimates based on object sizes
+        long expenditureMemory = expenditureCount * 200; // ~200 bytes per expenditure
+        long categoryMemory = categoryCount * 50;        // ~50 bytes per category
+        long accountMemory = accountCount * 150;         // ~150 bytes per account
+        
+        System.out.printf("├─ Expenditures (%d): ~%d KB\n", expenditureCount, expenditureMemory / 1024);
+        System.out.printf("├─ Categories (%d): ~%d KB\n", categoryCount, categoryMemory / 1024);
+        System.out.printf("├─ Bank Accounts (%d): ~%d KB\n", accountCount, accountMemory / 1024);
+        System.out.printf("└─ System Overhead: ~%d KB\n", 
+                (memInfo.getUsedMemoryMB() * 1024) - (expenditureMemory + categoryMemory + accountMemory) / 1024);
+        
+        // Memory recommendations
+        System.out.println("\nMemory Optimization Recommendations:");
+        if (memInfo.getMemoryUsagePercentage() > 80) {
+            System.out.println("⚠️ HIGH MEMORY USAGE - Consider:");
+            System.out.println("   • Archiving old expenditure records");
+            System.out.println("   • Implementing data pagination");
+            System.out.println("   • Running garbage collection");
+        } else if (memInfo.getMemoryUsagePercentage() > 60) {
+            System.out.println("📊 MODERATE MEMORY USAGE - Consider:");
+            System.out.println("   • Monitoring growth trends");
+            System.out.println("   • Periodic data cleanup");
+        } else {
+            System.out.println("✅ OPTIMAL MEMORY USAGE");
+            System.out.println("   • Current usage is efficient");
+            System.out.println("   • System has room for growth");
+        }
+        
+        timer.stop();
+        timer.recordInMonitor(systemMonitor);
+        
+        System.out.println("\nPress Enter to continue...");
+        scanner.nextLine();
+    }
+
+    private void runAllPerformanceTests() {
+        System.out.println("\n=== COMPREHENSIVE PERFORMANCE TEST SUITE ===");
+        System.out.println("Running all performance tests...\n");
+        
+        PerformanceTimer overallTimer = PerformanceTimer.startNew("Complete Performance Test Suite");
+        
+        // Test each component
+        System.out.println("1/4 Testing Expenditure Service...");
+        expenditureService.performanceComparison(1000.0, 5000.0);
+        
+        System.out.println("\n2/4 Testing Category Service...");
+        categoryService.performanceComparisonSearch("C");
+        
+        System.out.println("\n3/4 Testing Bank Account Service...");
+        bankAccountService.performanceComparisonBalance(10000.0);
+        
+        System.out.println("\n4/4 Testing Receipt Service...");
+        LocalDate startDate = LocalDate.now().minusMonths(1);
+        LocalDate endDate = LocalDate.now();
+        receiptService.performanceComparisonDateRange(startDate, endDate);
+        
+        overallTimer.stop();
+        overallTimer.recordInMonitor(systemMonitor);
+        
+        System.out.println("\n" + "=".repeat(60));
+        System.out.println("PERFORMANCE TEST SUITE COMPLETED");
+        System.out.printf("Total execution time: %.2f ms\n", overallTimer.getElapsedTimeMs());
+        System.out.println("=".repeat(60));
+        
+        // Display updated performance meter
+        System.out.println("\nUpdated System Performance:");
+        systemMonitor.displayLivePerformanceMeter();
+        
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
     }

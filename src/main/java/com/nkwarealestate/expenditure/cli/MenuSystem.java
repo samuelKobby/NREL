@@ -9,8 +9,9 @@ import com.nkwarealestate.expenditure.services.SystemMonitorService;
 import com.nkwarealestate.expenditure.services.PerformanceTimer;
 import com.nkwarealestate.expenditure.models.Expenditure;
 import com.nkwarealestate.expenditure.models.Phase;
-import com.nkwarealestate.expenditure.models.BankAccount;
 import com.nkwarealestate.expenditure.models.Receipt;
+import com.nkwarealestate.expenditure.models.ProfitabilityForecast;
+import com.nkwarealestate.expenditure.models.AffordabilityAnalysis;
 import com.nkwarealestate.expenditure.datastructures.CustomLinkedList;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -240,31 +241,32 @@ public class MenuSystem {
 
     private void viewAllExpenditures() {
         PerformanceTimer timer = PerformanceTimer.startNew("View All Expenditures");
-        
+
         System.out.println("\n=== ALL EXPENDITURES ===");
-        
+
         CustomLinkedList<Expenditure> allExpenditures = expenditureService.getAllExpenditures();
-        
+
         if (allExpenditures.isEmpty()) {
             System.out.println("No expenditures found in the system.");
             timer.stop();
             timer.recordInMonitor(systemMonitor);
             return;
         }
-        
+
         // Display expenditures in table format
         expenditureService.displayExpendituresTable(allExpenditures);
-        
+
         // Show summary
         System.out.println("\nSUMMARY:");
         System.out.println("Total expenditures: " + expenditureService.getExpenditureCount());
-        System.out.println("Total amount: GHS " + String.format("%.2f", expenditureService.getTotalExpenditureAmount()));
-        
+        System.out
+                .println("Total amount: GHS " + String.format("%.2f", expenditureService.getTotalExpenditureAmount()));
+
         timer.stop();
         timer.recordInMonitor(systemMonitor);
-        
+
         // Show performance info for this operation
-        System.out.printf("\n[Performance] Loaded %d expenditures in %.2f ms\n", 
+        System.out.printf("\n[Performance] Loaded %d expenditures in %.2f ms\n",
                 allExpenditures.size(), timer.getElapsedTimeMs());
     }
 
@@ -589,15 +591,16 @@ public class MenuSystem {
             }
 
             PerformanceTimer timer = PerformanceTimer.startNew("Amount Range Search");
-            CustomLinkedList<Expenditure> results = expenditureService.getExpendituresByAmountRange(minAmount, maxAmount);
+            CustomLinkedList<Expenditure> results = expenditureService.getExpendituresByAmountRange(minAmount,
+                    maxAmount);
             timer.stop();
-            
+
             expenditureService.displayExpendituresTable(results);
-            
+
             // Show search performance
-            System.out.printf("\n[Performance] Found %d results in %.2f ms using binary search\n", 
+            System.out.printf("\n[Performance] Found %d results in %.2f ms using binary search\n",
                     results.size(), timer.getElapsedTimeMs());
-            
+
             timer.recordInMonitor(systemMonitor);
 
         } catch (NumberFormatException e) {
@@ -936,13 +939,14 @@ public class MenuSystem {
             System.out.println("\n=============== FINANCIAL ANALYSIS ================");
             System.out.println("1. Monthly Expenditure Statistics");
             System.out.println("2. Calculate Burn Rate");
-            System.out.println("3. Generate Expenditure Forecast");
-            System.out.println("4. Material Cost Impact Analysis");
-            System.out.println("5. Profitability Analysis");
+            System.out.println("3. Profitability Forecast");
+            System.out.println("4. Material Price Impact Analysis");
+            System.out.println("5. Generate Expenditure Forecast");
             System.out.println("6. Expenditure Tree View");
+            System.out.println("7. Export Financial Report");
             System.out.println("0. Back to Main Menu");
             System.out.println("===================================================");
-            System.out.print("Please select an option (0-6): ");
+            System.out.print("Please select an option (0-7): ");
 
             int choice = getMenuChoice();
 
@@ -954,21 +958,24 @@ public class MenuSystem {
                     calculateBurnRate();
                     break;
                 case 3:
-                    generateForecast();
+                    generateProfitabilityForecast();
                     break;
                 case 4:
-                    analyzeMaterialCost();
+                    analyzeMaterialPriceImpact();
                     break;
                 case 5:
-                    analyzeProfitability();
+                    generateForecast();
                     break;
                 case 6:
                     viewExpenditureTree();
                     break;
+                case 7:
+                    exportFinancialReport();
+                    break;
                 case 0:
                     return;
                 default:
-                    System.out.println("\nInvalid option. Please select a number between 0-6.");
+                    System.out.println("\nInvalid option. Please select a number between 0-7.");
                     break;
             }
         }
@@ -1048,57 +1055,6 @@ public class MenuSystem {
         }
     }
 
-    private void analyzeMaterialCost() {
-        System.out.println("\n=== MATERIAL COST IMPACT ANALYSIS ===");
-
-        try {
-            // Show available categories
-            System.out.println("Available categories:");
-            categoryService.displayAllCategories();
-
-            System.out.print("Enter material category to analyze: ");
-            String materialCategory = scanner.nextLine().trim();
-
-            System.out.print("Enter percentage increase to simulate (e.g., 10): ");
-            double percentage = Double.parseDouble(scanner.nextLine().trim());
-
-            if (percentage < 0) {
-                System.out.println("✗ Percentage must be a positive number.");
-                return;
-            }
-
-            String analysis = financialAnalysisService.analyzeMaterialCostImpact(materialCategory, percentage);
-            System.out.println("\n" + analysis);
-
-        } catch (NumberFormatException e) {
-            System.out.println("✗ Invalid number format.");
-        } catch (Exception e) {
-            System.out.println("✗ Error analyzing material cost: " + e.getMessage());
-        }
-    }
-
-    private void analyzeProfitability() {
-        System.out.println("\n=== PROFITABILITY ANALYSIS ===");
-
-        try {
-            System.out.print("Enter expected total revenue for the project (GHS): ");
-            double revenue = Double.parseDouble(scanner.nextLine().trim());
-
-            if (revenue <= 0) {
-                System.out.println("✗ Revenue must be greater than 0.");
-                return;
-            }
-
-            String analysis = financialAnalysisService.analyzeProfitability(revenue);
-            System.out.println("\n" + analysis);
-
-        } catch (NumberFormatException e) {
-            System.out.println("✗ Invalid number format.");
-        } catch (Exception e) {
-            System.out.println("✗ Error analyzing profitability: " + e.getMessage());
-        }
-    }
-
     private void viewExpenditureTree() {
         System.out.println("\n=== EXPENDITURE TREE VIEW ===");
 
@@ -1160,7 +1116,7 @@ public class MenuSystem {
 
     private void showSystemInfo() {
         PerformanceTimer timer = PerformanceTimer.startNew("System Info Display");
-        
+
         System.out.println("\n=== SYSTEM INFORMATION ===");
 
         int expenditureCount = expenditureService.getExpenditureCount();
@@ -1190,7 +1146,7 @@ public class MenuSystem {
         System.out.println("\nMemory Usage Information:");
         System.out.printf("- Maximum Memory: %d MB\n", memInfo.getMaxMemoryMB());
         System.out.printf("- Allocated Memory: %d MB\n", memInfo.getTotalMemoryMB());
-        System.out.printf("- Used Memory: %d MB (%.1f%%)\n", 
+        System.out.printf("- Used Memory: %d MB (%.1f%%)\n",
                 memInfo.getUsedMemoryMB(), memInfo.getMemoryUsagePercentage());
         System.out.printf("- Free Memory: %d MB\n", memInfo.getFreeMemoryMB());
         System.out.printf("- Memory Efficiency: %s\n", memInfo.getEfficiencyRating());
@@ -1281,110 +1237,110 @@ public class MenuSystem {
     private void showLivePerformanceMeter() {
         System.out.println("\n=== LIVE PERFORMANCE METER ===");
         System.out.println("Displaying real-time system performance...\n");
-        
+
         systemMonitor.displayLivePerformanceMeter();
-        
+
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
     }
 
     private void showPerformanceReport() {
         PerformanceTimer timer = PerformanceTimer.startNew("Performance Report Generation");
-        
+
         System.out.println("\n=== COMPREHENSIVE PERFORMANCE REPORT ===");
         String report = systemMonitor.generateSystemReport();
         System.out.println(report);
-        
+
         timer.stop();
         timer.recordInMonitor(systemMonitor);
-        
+
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
     }
 
     private void testExpenditureSearchPerformance() {
         System.out.println("\n=== EXPENDITURE SEARCH PERFORMANCE TEST ===");
-        
+
         // Test binary search vs linear search for amount range
         PerformanceTimer timer = PerformanceTimer.startNew("Expenditure Performance Test");
         expenditureService.performanceComparison(1000.0, 5000.0);
         timer.stop();
         timer.recordInMonitor(systemMonitor);
-        
+
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
     }
 
     private void testCategorySearchPerformance() {
         System.out.println("\n=== CATEGORY SEARCH PERFORMANCE TEST ===");
-        
+
         PerformanceTimer timer = PerformanceTimer.startNew("Category Performance Test");
         categoryService.performanceComparisonSearch("C");
         timer.stop();
         timer.recordInMonitor(systemMonitor);
-        
+
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
     }
 
     private void testBankAccountSearchPerformance() {
         System.out.println("\n=== BANK ACCOUNT SEARCH PERFORMANCE TEST ===");
-        
+
         PerformanceTimer timer = PerformanceTimer.startNew("Bank Account Performance Test");
         bankAccountService.performanceComparisonBalance(10000.0);
         timer.stop();
         timer.recordInMonitor(systemMonitor);
-        
+
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
     }
 
     private void testReceiptSearchPerformance() {
         System.out.println("\n=== RECEIPT SEARCH PERFORMANCE TEST ===");
-        
+
         PerformanceTimer timer = PerformanceTimer.startNew("Receipt Performance Test");
         LocalDate startDate = LocalDate.now().minusMonths(1);
         LocalDate endDate = LocalDate.now();
         receiptService.performanceComparisonDateRange(startDate, endDate);
         timer.stop();
         timer.recordInMonitor(systemMonitor);
-        
+
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
     }
 
     private void analyzeMemoryUsage() {
         System.out.println("\n=== MEMORY USAGE ANALYSIS ===");
-        
+
         PerformanceTimer timer = PerformanceTimer.startNew("Memory Analysis");
-        
+
         SystemMonitorService.MemoryInfo memInfo = systemMonitor.getCurrentMemoryInfo();
-        
+
         System.out.println("Current Memory Status:");
         System.out.printf("├─ Maximum Available: %d MB\n", memInfo.getMaxMemoryMB());
         System.out.printf("├─ Currently Allocated: %d MB\n", memInfo.getTotalMemoryMB());
-        System.out.printf("├─ In Use: %d MB (%.1f%%)\n", 
+        System.out.printf("├─ In Use: %d MB (%.1f%%)\n",
                 memInfo.getUsedMemoryMB(), memInfo.getMemoryUsagePercentage());
         System.out.printf("├─ Free: %d MB\n", memInfo.getFreeMemoryMB());
         System.out.printf("└─ Efficiency Rating: %s\n", memInfo.getEfficiencyRating());
-        
+
         // Memory usage by data structure (estimated)
         System.out.println("\nEstimated Memory Usage by Component:");
         int expenditureCount = expenditureService.getExpenditureCount();
         int categoryCount = categoryService.getCategoryCount();
         int accountCount = bankAccountService.getAccountCount();
-        
+
         // Rough estimates based on object sizes
         long expenditureMemory = expenditureCount * 200; // ~200 bytes per expenditure
-        long categoryMemory = categoryCount * 50;        // ~50 bytes per category
-        long accountMemory = accountCount * 150;         // ~150 bytes per account
-        
+        long categoryMemory = categoryCount * 50; // ~50 bytes per category
+        long accountMemory = accountCount * 150; // ~150 bytes per account
+
         System.out.printf("├─ Expenditures (%d): ~%d KB\n", expenditureCount, expenditureMemory / 1024);
         System.out.printf("├─ Categories (%d): ~%d KB\n", categoryCount, categoryMemory / 1024);
         System.out.printf("├─ Bank Accounts (%d): ~%d KB\n", accountCount, accountMemory / 1024);
-        System.out.printf("└─ System Overhead: ~%d KB\n", 
+        System.out.printf("└─ System Overhead: ~%d KB\n",
                 (memInfo.getUsedMemoryMB() * 1024) - (expenditureMemory + categoryMemory + accountMemory) / 1024);
-        
+
         // Memory recommendations
         System.out.println("\nMemory Optimization Recommendations:");
         if (memInfo.getMemoryUsagePercentage() > 80) {
@@ -1401,10 +1357,10 @@ public class MenuSystem {
             System.out.println("   • Current usage is efficient");
             System.out.println("   • System has room for growth");
         }
-        
+
         timer.stop();
         timer.recordInMonitor(systemMonitor);
-        
+
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
     }
@@ -1412,37 +1368,79 @@ public class MenuSystem {
     private void runAllPerformanceTests() {
         System.out.println("\n=== COMPREHENSIVE PERFORMANCE TEST SUITE ===");
         System.out.println("Running all performance tests...\n");
-        
+
         PerformanceTimer overallTimer = PerformanceTimer.startNew("Complete Performance Test Suite");
-        
+
         // Test each component
         System.out.println("1/4 Testing Expenditure Service...");
         expenditureService.performanceComparison(1000.0, 5000.0);
-        
+
         System.out.println("\n2/4 Testing Category Service...");
         categoryService.performanceComparisonSearch("C");
-        
+
         System.out.println("\n3/4 Testing Bank Account Service...");
         bankAccountService.performanceComparisonBalance(10000.0);
-        
+
         System.out.println("\n4/4 Testing Receipt Service...");
         LocalDate startDate = LocalDate.now().minusMonths(1);
         LocalDate endDate = LocalDate.now();
         receiptService.performanceComparisonDateRange(startDate, endDate);
-        
+
         overallTimer.stop();
         overallTimer.recordInMonitor(systemMonitor);
-        
+
         System.out.println("\n" + "=".repeat(60));
         System.out.println("PERFORMANCE TEST SUITE COMPLETED");
         System.out.printf("Total execution time: %.2f ms\n", overallTimer.getElapsedTimeMs());
         System.out.println("=".repeat(60));
-        
+
         // Display updated performance meter
         System.out.println("\nUpdated System Performance:");
         systemMonitor.displayLivePerformanceMeter();
-        
+
         System.out.println("\nPress Enter to continue...");
         scanner.nextLine();
+    }
+
+    private void generateProfitabilityForecast() {
+        System.out.println("\n=== PROFITABILITY FORECAST ===");
+        System.out.print("Enter months to forecast (1-12): ");
+        try {
+            int months = Integer.parseInt(scanner.nextLine().trim());
+            ProfitabilityForecast forecast = financialAnalysisService.generateProfitabilityForecast(months);
+            System.out.println("Forecast generated successfully!");
+            System.out.printf("Trend: %s, Confidence: %.1f%%\n",
+                    forecast.getTrendDescription(), forecast.getConfidenceLevel() * 100);
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    private void analyzeMaterialPriceImpact() {
+        System.out.println("\n=== MATERIAL PRICE IMPACT ANALYSIS ===");
+        System.out.print("Enter price increase percentage: ");
+        try {
+            double increase = Double.parseDouble(scanner.nextLine().trim());
+            AffordabilityAnalysis analysis = financialAnalysisService.analyzeMaterialPriceImpact(increase);
+            System.out.println("Analysis completed successfully!");
+            System.out.printf("Impact Level: %s\n", analysis.getThresholds().getImpactLevel());
+            System.out.printf("Additional Cost: GHS %.2f\n", analysis.getTotalAdditionalCost());
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    private void exportFinancialReport() {
+        System.out.println("\n=== EXPORT FINANCIAL REPORT ===");
+        System.out.println("Generating comprehensive report...");
+        try {
+            double total = expenditureService.getTotalExpenditureAmount();
+            int count = expenditureService.getExpenditureCount();
+            System.out.printf("Total Expenditure: GHS %.2f\n", total);
+            System.out.printf("Total Transactions: %d\n", count);
+            System.out.println("Report generated successfully!");
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        }
     }
 }

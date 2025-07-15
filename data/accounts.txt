@@ -1,3 +1,4 @@
 # Bank Accounts
 # Format: AccountID|BankName|Balance|AccountType
 ACC001|GCB Bank|75000.00|Construction
+ACC002|Ecobank|25000.00|Marketing

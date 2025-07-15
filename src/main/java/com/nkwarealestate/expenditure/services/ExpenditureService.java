@@ -17,11 +17,13 @@ public class ExpenditureService {
     private CustomHashMap<String, Expenditure> expenditures;
     private int nextExpenditureId;
     private DateTimeFormatter dateFormatter;
+    private PerformanceTimer timer;
 
     public ExpenditureService() {
         this.expenditures = new CustomHashMap<>();
         this.nextExpenditureId = 1;
         this.dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        this.timer = new PerformanceTimer();
         loadSampleData();
     }
 
@@ -53,6 +55,26 @@ public class ExpenditureService {
     }
 
     /**
+     * Simple performance timer utility class for measuring execution time
+     */
+    private static class PerformanceTimer {
+        private long startTime;
+        private long endTime;
+
+        public void startTimer() {
+            this.startTime = System.currentTimeMillis();
+        }
+
+        public void stopTimer() {
+            this.endTime = System.currentTimeMillis();
+        }
+
+        public long getLastExecutionTime() {
+            return endTime - startTime;
+        }
+    }
+
+    /**
      * Retrieve expenditure by code
      */
     public Expenditure getExpenditure(String code) {
@@ -65,7 +87,8 @@ public class ExpenditureService {
     public CustomLinkedList<Expenditure> getAllExpenditures() {
         CustomLinkedList<Expenditure> allExpenditures = new CustomLinkedList<>();
 
-        // Iterate through all entries in the expenditures map and add values to the list
+        // Iterate through all entries in the expenditures map and add values to the
+        // list
         for (Expenditure exp : expenditures.values()) {
             allExpenditures.add(exp);
         }
@@ -156,12 +179,12 @@ public class ExpenditureService {
      */
     public double getTotalExpenditureAmount() {
         double total = 0.0;
-        
+
         // Sum up all expenditure amounts
         for (Expenditure exp : expenditures.values()) {
             total += exp.getAmount();
         }
-        
+
         return total;
     }
 
@@ -231,23 +254,23 @@ public class ExpenditureService {
         CustomLinkedList<Expenditure> list = getAllExpenditures();
         int size = list.size();
         Expenditure[] array = new Expenditure[size];
-        
+
         // Convert list to array
         for (int i = 0; i < size; i++) {
             array[i] = list.get(i);
         }
-        
+
         // Bubble sort (simple implementation for demonstration)
         for (int i = 0; i < size - 1; i++) {
             for (int j = 0; j < size - i - 1; j++) {
                 boolean shouldSwap;
-                
+
                 if (ascending) {
                     shouldSwap = array[j].getAmount() > array[j + 1].getAmount();
                 } else {
                     shouldSwap = array[j].getAmount() < array[j + 1].getAmount();
                 }
-                
+
                 if (shouldSwap) {
                     // Swap elements
                     Expenditure temp = array[j];
@@ -256,18 +279,20 @@ public class ExpenditureService {
                 }
             }
         }
-        
+
         // Convert back to CustomLinkedList
         CustomLinkedList<Expenditure> result = new CustomLinkedList<>();
         for (Expenditure exp : array) {
             result.add(exp);
         }
-        
+
         return result;
     }
 
     /**
      * Sort expenditures by date (ascending or descending)
+     * Time Complexity: O(n²) - Bubble Sort
+     * Space Complexity: O(n)
      * 
      * @param ascending true for oldest first, false for newest first
      * @return A sorted list of expenditures by date
@@ -277,23 +302,23 @@ public class ExpenditureService {
         CustomLinkedList<Expenditure> list = getAllExpenditures();
         int size = list.size();
         Expenditure[] array = new Expenditure[size];
-        
+
         // Convert list to array
         for (int i = 0; i < size; i++) {
             array[i] = list.get(i);
         }
-        
+
         // Bubble sort (simple implementation for demonstration)
         for (int i = 0; i < size - 1; i++) {
             for (int j = 0; j < size - i - 1; j++) {
                 boolean shouldSwap;
-                
+
                 if (ascending) {
                     shouldSwap = array[j].getDate().isAfter(array[j + 1].getDate());
                 } else {
                     shouldSwap = array[j].getDate().isBefore(array[j + 1].getDate());
                 }
-                
+
                 if (shouldSwap) {
                     // Swap elements
                     Expenditure temp = array[j];
@@ -302,14 +327,55 @@ public class ExpenditureService {
                 }
             }
         }
-        
+
         // Convert back to CustomLinkedList
         CustomLinkedList<Expenditure> result = new CustomLinkedList<>();
         for (Expenditure exp : array) {
             result.add(exp);
         }
-        
+
         return result;
+    }
+
+    /**
+     * Sort expenditures by category alphabetically
+     * Time Complexity: O(n²) - Bubble sort
+     * Space Complexity: O(n)
+     * 
+     * @param ascending true for A-Z order, false for Z-A order
+     * @return Sorted list of expenditures by category name
+     */
+    public CustomLinkedList<Expenditure> sortExpendituresByCategory(boolean ascending) {
+        timer.startTimer();
+        CustomLinkedList<Expenditure> sortedList = getAllExpenditures();
+
+        // Bubble sort by category name
+        for (int i = 0; i < sortedList.size() - 1; i++) {
+            for (int j = 0; j < sortedList.size() - 1 - i; j++) {
+                Expenditure exp1 = sortedList.get(j);
+                Expenditure exp2 = sortedList.get(j + 1);
+
+                String category1 = exp1.getCategory() != null ? exp1.getCategory() : "";
+                String category2 = exp2.getCategory() != null ? exp2.getCategory() : "";
+
+                boolean shouldSwap = ascending ? category1.compareToIgnoreCase(category2) > 0
+                        : category1.compareToIgnoreCase(category2) < 0;
+
+                if (shouldSwap) {
+                    // Swap elements using remove and add operations
+                    sortedList.remove(j);
+                    sortedList.add(j, exp2);
+                    sortedList.remove(j + 1);
+                    sortedList.add(j + 1, exp1);
+                }
+            }
+        }
+
+        timer.stopTimer();
+        long duration = timer.getLastExecutionTime();
+        System.out.println("Sort by category completed in " + duration + " ms");
+
+        return sortedList;
     }
 
     /**
@@ -322,12 +388,15 @@ public class ExpenditureService {
             System.out.println("No expenditures found matching your criteria.");
             return;
         }
-        
+
         // Table header
-        System.out.println("\n+------------+-------------+------------+---------------+------------+----------------------+");
-        System.out.println("| CODE       | AMOUNT (GHS) | DATE       | PHASE         | ACCOUNT ID | DESCRIPTION          |");
-        System.out.println("+------------+-------------+------------+---------------+------------+----------------------+");
-        
+        System.out.println(
+                "\n+------------+-------------+------------+---------------+------------+----------------------+");
+        System.out.println(
+                "| CODE       | AMOUNT (GHS) | DATE       | PHASE         | ACCOUNT ID | DESCRIPTION          |");
+        System.out.println(
+                "+------------+-------------+------------+---------------+------------+----------------------+");
+
         // Table rows
         for (int i = 0; i < expenditures.size(); i++) {
             Expenditure exp = expenditures.get(i);
@@ -335,7 +404,7 @@ public class ExpenditureService {
             if (description.length() > 20) {
                 description = description.substring(0, 17) + "...";
             }
-            
+
             System.out.printf("| %-10s | %11.2f | %-10s | %-13s | %-10s | %-20s |\n",
                     exp.getCode(),
                     exp.getAmount(),
@@ -344,50 +413,51 @@ public class ExpenditureService {
                     exp.getAccountId(),
                     description);
         }
-        
+
         // Table footer
-        System.out.println("+------------+-------------+------------+---------------+------------+----------------------+");
+        System.out.println(
+                "+------------+-------------+------------+---------------+------------+----------------------+");
         System.out.println("Total: " + expenditures.size() + " expenditure(s)");
     }
 
     /**
      * Advanced search for expenditures with multiple optional criteria
      * 
-     * @param category Optional category to filter by (null to ignore)
-     * @param phase Optional phase to filter by (null to ignore)
+     * @param category  Optional category to filter by (null to ignore)
+     * @param phase     Optional phase to filter by (null to ignore)
      * @param minAmount Optional minimum amount (null to ignore)
      * @param maxAmount Optional maximum amount (null to ignore)
      * @param startDate Optional start date (null to ignore)
-     * @param endDate Optional end date (null to ignore)
-     * @param keywords Optional keywords to search in description (null to ignore)
+     * @param endDate   Optional end date (null to ignore)
+     * @param keywords  Optional keywords to search in description (null to ignore)
      * @return A list of expenditures matching all provided criteria
      */
     public CustomLinkedList<Expenditure> advancedSearch(
-            String category, 
-            Phase phase, 
-            Double minAmount, 
-            Double maxAmount, 
-            LocalDate startDate, 
-            LocalDate endDate, 
+            String category,
+            Phase phase,
+            Double minAmount,
+            Double maxAmount,
+            LocalDate startDate,
+            LocalDate endDate,
             String keywords) {
-        
+
         CustomLinkedList<Expenditure> results = new CustomLinkedList<>();
-        
+
         // Iterate through all expenditures and apply filters
         for (Expenditure exp : expenditures.values()) {
             boolean matches = true;
-            
+
             // Apply category filter if provided
-            if (category != null && !category.isEmpty() && 
-                !exp.getCategory().equalsIgnoreCase(category)) {
+            if (category != null && !category.isEmpty() &&
+                    !exp.getCategory().equalsIgnoreCase(category)) {
                 matches = false;
             }
-            
+
             // Apply phase filter if provided
             if (phase != null && exp.getPhase() != phase) {
                 matches = false;
             }
-            
+
             // Apply amount range filter if provided
             if (minAmount != null && exp.getAmount() < minAmount) {
                 matches = false;
@@ -395,7 +465,7 @@ public class ExpenditureService {
             if (maxAmount != null && exp.getAmount() > maxAmount) {
                 matches = false;
             }
-            
+
             // Apply date range filter if provided
             if (startDate != null && exp.getDate().isBefore(startDate)) {
                 matches = false;
@@ -403,26 +473,26 @@ public class ExpenditureService {
             if (endDate != null && exp.getDate().isAfter(endDate)) {
                 matches = false;
             }
-            
+
             // Apply keyword search in description if provided
-            if (keywords != null && !keywords.isEmpty() && 
-                !exp.getDescription().toLowerCase().contains(keywords.toLowerCase())) {
+            if (keywords != null && !keywords.isEmpty() &&
+                    !exp.getDescription().toLowerCase().contains(keywords.toLowerCase())) {
                 matches = false;
             }
-            
+
             // Add to results if all applied filters match
             if (matches) {
                 results.add(exp);
             }
         }
-        
+
         return results;
     }
-    
+
     /**
      * Calculate monthly expenditure statistics
      * 
-     * @param year The year to analyze
+     * @param year  The year to analyze
      * @param month The month to analyze (1-12)
      * @return A summary string with statistics
      */
@@ -431,7 +501,7 @@ public class ExpenditureService {
         double totalAmount = 0.0;
         CustomHashMap<String, Double> categoryTotals = new CustomHashMap<>();
         CustomHashMap<Phase, Double> phaseTotals = new CustomHashMap<>();
-        
+
         // Filter expenditures for the specified month
         for (Expenditure exp : expenditures.values()) {
             LocalDate date = exp.getDate();
@@ -439,7 +509,7 @@ public class ExpenditureService {
                 monthExpenditures.add(exp);
                 double amount = exp.getAmount();
                 totalAmount += amount;
-                
+
                 // Update category totals
                 String category = exp.getCategory();
                 Double categoryTotal = categoryTotals.get(category);
@@ -448,7 +518,7 @@ public class ExpenditureService {
                 } else {
                     categoryTotals.put(category, categoryTotal + amount);
                 }
-                
+
                 // Update phase totals
                 Phase phase = exp.getPhase();
                 Double phaseTotal = phaseTotals.get(phase);
@@ -459,56 +529,56 @@ public class ExpenditureService {
                 }
             }
         }
-        
+
         if (monthExpenditures.isEmpty()) {
             return "No expenditures found for " + getMonthName(month) + " " + year + ".";
         }
-        
+
         // Build statistics string
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("Monthly Report: %s %d\n", getMonthName(month), year));
         sb.append("------------------------------\n");
         sb.append(String.format("Total Expenditures: %d\n", monthExpenditures.size()));
         sb.append(String.format("Total Amount: GHS %.2f\n\n", totalAmount));
-        
+
         // Category breakdown
         sb.append("Breakdown by Category:\n");
         for (CustomHashMap.Entry<String, Double> entry : categoryTotals.entries()) {
             double percentage = (entry.getValue() / totalAmount) * 100;
-            sb.append(String.format("  %-15s: GHS %.2f (%.1f%%)\n", 
+            sb.append(String.format("  %-15s: GHS %.2f (%.1f%%)\n",
                     entry.getKey(), entry.getValue(), percentage));
         }
         sb.append("\n");
-        
+
         // Phase breakdown
         sb.append("Breakdown by Phase:\n");
         for (CustomHashMap.Entry<Phase, Double> entry : phaseTotals.entries()) {
             double percentage = (entry.getValue() / totalAmount) * 100;
-            sb.append(String.format("  %-15s: GHS %.2f (%.1f%%)\n", 
+            sb.append(String.format("  %-15s: GHS %.2f (%.1f%%)\n",
                     entry.getKey().toString(), entry.getValue(), percentage));
         }
-        
+
         return sb.toString();
     }
-    
+
     /**
      * Helper method to get month name
      */
     private String getMonthName(int month) {
         String[] months = {
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"
         };
-        
+
         if (month >= 1 && month <= 12) {
             return months[month - 1];
         } else {
             return "Unknown";
         }
     }
-    
+
     // ================ BINARY SEARCH ALGORITHMS ================
-    
+
     /**
      * Binary search for expenditures by exact amount
      * Requires expenditures to be sorted by amount first
@@ -520,29 +590,29 @@ public class ExpenditureService {
     public Expenditure binarySearchByAmount(double targetAmount) {
         // First, get sorted array of expenditures by amount
         CustomLinkedList<Expenditure> sortedList = sortExpendituresByAmount(true);
-        
+
         int left = 0;
         int right = sortedList.size() - 1;
-        
+
         while (left <= right) {
             int mid = left + (right - left) / 2;
             Expenditure midExpenditure = sortedList.get(mid);
             double midAmount = midExpenditure.getAmount();
-            
+
             if (Math.abs(midAmount - targetAmount) < 0.01) { // Compare with small tolerance for doubles
                 return midExpenditure; // Found exact match
             }
-            
+
             if (midAmount < targetAmount) {
                 left = mid + 1; // Search right half
             } else {
                 right = mid - 1; // Search left half
             }
         }
-        
+
         return null; // Not found
     }
-    
+
     /**
      * Binary search for expenditures within amount range
      * Time Complexity: O(log n + k) where k is number of results
@@ -554,36 +624,36 @@ public class ExpenditureService {
     public CustomLinkedList<Expenditure> binarySearchAmountRange(double minAmount, double maxAmount) {
         CustomLinkedList<Expenditure> results = new CustomLinkedList<>();
         CustomLinkedList<Expenditure> sortedList = sortExpendituresByAmount(true);
-        
+
         if (sortedList.isEmpty()) {
             return results;
         }
-        
+
         // Find first occurrence >= minAmount
         int startIndex = findFirstGreaterOrEqualAmount(sortedList, minAmount);
-        
+
         // Find last occurrence <= maxAmount
         int endIndex = findLastLessOrEqualAmount(sortedList, maxAmount);
-        
+
         // Add all expenditures in range
         for (int i = startIndex; i <= endIndex && i < sortedList.size(); i++) {
             results.add(sortedList.get(i));
         }
-        
+
         return results;
     }
-    
+
     /**
      * Binary search helper: Find first expenditure with amount >= target
      */
     private int findFirstGreaterOrEqualAmount(CustomLinkedList<Expenditure> sortedList, double target) {
         int left = 0, right = sortedList.size() - 1;
         int result = sortedList.size(); // If not found, return size (invalid index)
-        
+
         while (left <= right) {
             int mid = left + (right - left) / 2;
             double midAmount = sortedList.get(mid).getAmount();
-            
+
             if (midAmount >= target) {
                 result = mid;
                 right = mid - 1; // Continue searching left for first occurrence
@@ -591,21 +661,21 @@ public class ExpenditureService {
                 left = mid + 1;
             }
         }
-        
+
         return result;
     }
-    
+
     /**
      * Binary search helper: Find last expenditure with amount <= target
      */
     private int findLastLessOrEqualAmount(CustomLinkedList<Expenditure> sortedList, double target) {
         int left = 0, right = sortedList.size() - 1;
         int result = -1; // If not found, return -1
-        
+
         while (left <= right) {
             int mid = left + (right - left) / 2;
             double midAmount = sortedList.get(mid).getAmount();
-            
+
             if (midAmount <= target) {
                 result = mid;
                 left = mid + 1; // Continue searching right for last occurrence
@@ -613,51 +683,51 @@ public class ExpenditureService {
                 right = mid - 1;
             }
         }
-        
+
         return result;
     }
-    
+
     /**
      * Binary search for expenditures by date range
      * Time Complexity: O(log n + k) where k is number of results
      * 
      * @param startDate Start date (inclusive)
-     * @param endDate End date (inclusive)
+     * @param endDate   End date (inclusive)
      * @return List of expenditures within the date range
      */
     public CustomLinkedList<Expenditure> binarySearchDateRange(LocalDate startDate, LocalDate endDate) {
         CustomLinkedList<Expenditure> results = new CustomLinkedList<>();
         CustomLinkedList<Expenditure> sortedList = sortExpendituresByDate(true);
-        
+
         if (sortedList.isEmpty()) {
             return results;
         }
-        
+
         // Find first occurrence >= startDate
         int startIndex = findFirstGreaterOrEqualDate(sortedList, startDate);
-        
+
         // Find last occurrence <= endDate
         int endIndex = findLastLessOrEqualDate(sortedList, endDate);
-        
+
         // Add all expenditures in range
         for (int i = startIndex; i <= endIndex && i < sortedList.size(); i++) {
             results.add(sortedList.get(i));
         }
-        
+
         return results;
     }
-    
+
     /**
      * Binary search helper: Find first expenditure with date >= target
      */
     private int findFirstGreaterOrEqualDate(CustomLinkedList<Expenditure> sortedList, LocalDate target) {
         int left = 0, right = sortedList.size() - 1;
         int result = sortedList.size(); // If not found, return size (invalid index)
-        
+
         while (left <= right) {
             int mid = left + (right - left) / 2;
             LocalDate midDate = sortedList.get(mid).getDate();
-            
+
             if (midDate.isEqual(target) || midDate.isAfter(target)) {
                 result = mid;
                 right = mid - 1; // Continue searching left for first occurrence
@@ -665,21 +735,21 @@ public class ExpenditureService {
                 left = mid + 1;
             }
         }
-        
+
         return result;
     }
-    
+
     /**
      * Binary search helper: Find last expenditure with date <= target
      */
     private int findLastLessOrEqualDate(CustomLinkedList<Expenditure> sortedList, LocalDate target) {
         int left = 0, right = sortedList.size() - 1;
         int result = -1; // If not found, return -1
-        
+
         while (left <= right) {
             int mid = left + (right - left) / 2;
             LocalDate midDate = sortedList.get(mid).getDate();
-            
+
             if (midDate.isEqual(target) || midDate.isBefore(target)) {
                 result = mid;
                 left = mid + 1; // Continue searching right for last occurrence
@@ -687,14 +757,15 @@ public class ExpenditureService {
                 right = mid - 1;
             }
         }
-        
+
         return result;
     }
-    
+
     // ================ PERFORMANCE COMPARISON METHODS ================
-    
+
     /**
-     * Get expenditures by category using linear search (original method for comparison)
+     * Get expenditures by category using linear search (original method for
+     * comparison)
      * Time Complexity: O(n)
      * 
      * @param category The category to search for
@@ -712,7 +783,7 @@ public class ExpenditureService {
 
         return categoryExpenditures;
     }
-    
+
     /**
      * Performance test method to compare linear vs binary search
      * 
@@ -721,9 +792,9 @@ public class ExpenditureService {
      */
     public void performanceComparison(double minAmount, double maxAmount) {
         System.out.println("\n=== PERFORMANCE COMPARISON ===");
-        
+
         long startTime, endTime;
-        
+
         // Test linear filtering (original method)
         startTime = System.nanoTime();
         CustomLinkedList<Expenditure> linearResults = new CustomLinkedList<>();
@@ -735,22 +806,22 @@ public class ExpenditureService {
         }
         endTime = System.nanoTime();
         long linearTime = endTime - startTime;
-        
+
         // Test binary search
         startTime = System.nanoTime();
         CustomLinkedList<Expenditure> binaryResults = binarySearchAmountRange(minAmount, maxAmount);
         endTime = System.nanoTime();
         long binaryTime = endTime - startTime;
-        
+
         System.out.println("Linear Search Time: " + linearTime + " nanoseconds");
         System.out.println("Binary Search Time: " + binaryTime + " nanoseconds");
         System.out.println("Results count - Linear: " + linearResults.size() + ", Binary: " + binaryResults.size());
-        
+
         if (linearTime > 0) {
             double speedup = (double) linearTime / binaryTime;
             System.out.println("Binary search is " + String.format("%.2f", speedup) + "x faster");
         }
-        
+
         System.out.println("==============================\n");
     }
 
@@ -764,7 +835,7 @@ public class ExpenditureService {
     public Expenditure findExpenditureByExactAmount(double exactAmount) {
         return binarySearchByAmount(exactAmount);
     }
-    
+
     /**
      * Find all expenditures with exact amount using binary search
      * Time Complexity: O(log n + k) where k is number of matches
@@ -775,10 +846,10 @@ public class ExpenditureService {
     public CustomLinkedList<Expenditure> findAllExpendituresByExactAmount(double exactAmount) {
         CustomLinkedList<Expenditure> results = new CustomLinkedList<>();
         CustomLinkedList<Expenditure> sortedList = sortExpendituresByAmount(true);
-        
+
         // Find first occurrence of the exact amount
         int firstIndex = findFirstGreaterOrEqualAmount(sortedList, exactAmount);
-        
+
         // Collect all expenditures with the exact amount
         for (int i = firstIndex; i < sortedList.size(); i++) {
             Expenditure exp = sortedList.get(i);
@@ -788,7 +859,151 @@ public class ExpenditureService {
                 break; // Since list is sorted, no more matches after this
             }
         }
-        
+
         return results;
+    }
+
+    /**
+     * Get expenditures by bank account ID using linear search
+     * Time Complexity: O(n)
+     * Space Complexity: O(k) where k is number of matching expenditures
+     * 
+     * @param accountId Bank account ID to search for
+     * @return List of expenditures for the specified account
+     */
+    public CustomLinkedList<Expenditure> getExpendituresByAccount(String accountId) {
+        timer.startTimer();
+        CustomLinkedList<Expenditure> results = new CustomLinkedList<>();
+
+        if (accountId == null || accountId.trim().isEmpty()) {
+            timer.stopTimer();
+            return results;
+        }
+
+        CustomLinkedList<String> allKeys = expenditures.keySet();
+        for (int i = 0; i < allKeys.size(); i++) {
+            Expenditure expenditure = expenditures.get(allKeys.get(i));
+            if (expenditure != null && accountId.equalsIgnoreCase(expenditure.getAccountId())) {
+                results.add(expenditure);
+            }
+        }
+
+        timer.stopTimer();
+        long duration = timer.getLastExecutionTime();
+        System.out.println("Search by account completed in " + duration + " ms");
+
+        return results;
+    }
+
+    /**
+     * Binary search for expenditures by account ID (requires sorted data)
+     * Time Complexity: O(n log n) for sorting + O(log n) for search
+     * Space Complexity: O(n) for sorted copy + O(k) for results
+     * 
+     * @param accountId Bank account ID to search for
+     * @return List of expenditures for the specified account
+     */
+    public CustomLinkedList<Expenditure> binarySearchByAccount(String accountId) {
+        timer.startTimer();
+        CustomLinkedList<Expenditure> results = new CustomLinkedList<>();
+
+        if (accountId == null || accountId.trim().isEmpty()) {
+            timer.stopTimer();
+            return results;
+        }
+
+        // Get sorted list by account ID
+        CustomLinkedList<Expenditure> sortedList = sortExpendituresByAccount(true);
+
+        // Binary search for first occurrence
+        int firstIndex = findFirstAccountOccurrence(sortedList, accountId);
+
+        if (firstIndex != -1) {
+            // Add all expenditures with matching account ID
+            for (int i = firstIndex; i < sortedList.size(); i++) {
+                Expenditure exp = sortedList.get(i);
+                if (exp.getAccountId().equalsIgnoreCase(accountId)) {
+                    results.add(exp);
+                } else {
+                    break; // No more matches since list is sorted
+                }
+            }
+        }
+
+        timer.stopTimer();
+        long duration = timer.getLastExecutionTime();
+        System.out.println("Binary search by account completed in " + duration + " ms");
+
+        return results;
+    }
+
+    /**
+     * Sort expenditures by account ID
+     * Time Complexity: O(n^2) - Bubble sort
+     * Space Complexity: O(n)
+     * 
+     * @param ascending Sort order
+     * @return Sorted list of expenditures
+     */
+    public CustomLinkedList<Expenditure> sortExpendituresByAccount(boolean ascending) {
+        timer.startTimer();
+        CustomLinkedList<Expenditure> sortedList = getAllExpenditures();
+
+        // Bubble sort by account ID
+        for (int i = 0; i < sortedList.size() - 1; i++) {
+            for (int j = 0; j < sortedList.size() - 1 - i; j++) {
+                Expenditure exp1 = sortedList.get(j);
+                Expenditure exp2 = sortedList.get(j + 1);
+
+                String account1 = exp1.getAccountId() != null ? exp1.getAccountId() : "";
+                String account2 = exp2.getAccountId() != null ? exp2.getAccountId() : "";
+
+                boolean shouldSwap = ascending ? account1.compareToIgnoreCase(account2) > 0
+                        : account1.compareToIgnoreCase(account2) < 0;
+
+                if (shouldSwap) {
+                    // Swap elements by removing and inserting
+                    sortedList.remove(j);
+                    sortedList.add(j, exp2);
+                    sortedList.remove(j + 1);
+                    sortedList.add(j + 1, exp1);
+                }
+            }
+        }
+
+        timer.stopTimer();
+        long duration = timer.getLastExecutionTime();
+        System.out.println("Sort by account completed in " + duration + " ms");
+
+        return sortedList;
+    }
+
+    /**
+     * Binary search helper method to find first occurrence of account ID
+     * Time Complexity: O(log n)
+     * Space Complexity: O(1)
+     */
+    private int findFirstAccountOccurrence(CustomLinkedList<Expenditure> sortedList, String accountId) {
+        int left = 0, right = sortedList.size() - 1;
+        int result = -1;
+
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            Expenditure midExp = sortedList.get(mid);
+            String midAccount = midExp.getAccountId() != null ? midExp.getAccountId() : "";
+
+            int comparison = midAccount.compareToIgnoreCase(accountId);
+
+            if (comparison == 0) {
+                result = mid;
+                right = mid - 1; // Continue searching left for first occurrence
+            } else if (comparison < 0) {
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+
+        return result;
     }
 }
